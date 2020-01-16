@@ -23,6 +23,24 @@ const timestamp = guest => {
   const t = Date.now()
   setGuest({ ...guest, updatedDate: t, expirationDate: t + 1000 * 60 * 10 })
 }
+const onNewGuest = socket => (guest, ack) => {
+  guest.sId = socket.id
+  guest.name = guest.name || `Guest_${Date.now()}`
+  guest.color = guest.color || rnd({ luminosity: 'dark' })
+  setGuest(guest)
+  timestamp(guest)
+  emitListGuests()
+  ack(guest)
+}
+const onUpdateGuest = socket => (guest, ack) => {
+  // Used to update the name or the color
+  // For now, there is no difference with onNewGuest
+  onNewGuest(socket)(guest, ack)
+}
+const onByeBye = socket => _ => {
+  deleteGuest(socket.id)
+  emitListGuests()
+}
 const emitListGuests = () => {
   // Clean the list, pruning guests that are inactive for more than 10min
   const now = Date.now()
@@ -35,19 +53,9 @@ const emitListGuests = () => {
 }
 const occupappBeta = io.of('/occupapp-beta').on('connection', socket => {
   console.log('New occupapp user connected')
-  socket.on('new-guest', (guest, ack) => {
-    guest.name = guest.name || `Guest_${now()}`
-    guest.sId = socket.id
-    guest.color = rnd({ luminosity: 'dark' })
-    setGuest(guest)
-    timestamp(guest)
-    emitListGuests()
-    ack(guest)
-  })
-  socket.on('bye-bye', _ => {
-    deleteGuest(socket.id)
-    emitListGuests()
-  })
+  socket.on('new-guest', onNewGuest(socket))
+  socket.on('update-guest', onUpdateGuest(socket))
+  socket.on('bye-bye', onByeBye(socket))
 })
 
 http.listen(port, () => console.log('listening on port ' + port))
