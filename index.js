@@ -15,20 +15,38 @@ const chat = io.on('connection', socket => {
   })
 })
 
-let guests = []
+const guests = new Map()
+const setGuest = g => guests.set(g.sId, g)
+const deleteGuest = id => guests.delete(id)
+const getGuestsArray = () => [...guests.values()]
+const timestamp = guest => {
+  const t = Date.now()
+  setGuest({ ...guest, updatedDate: t, expirationDate: t + 1000 * 60 * 10 })
+}
+const emitListGuests = () => {
+  // Clean the list, pruning guests that are inactive for more than 10min
+  const now = Date.now()
+  for ([id, g] of guests) {
+    if (!g.updatedDate || g.expirationDate < now) {
+      deleteGuest(id)
+    }
+  }
+  io.of('/occupapp-beta').emit('list-guests', getGuestsArray())
+}
 const occupappBeta = io.of('/occupapp-beta').on('connection', socket => {
   console.log('New occupapp user connected')
   socket.on('new-guest', (guest, ack) => {
-    guest.name = guest.name || `Guest_${new Date().getTime()}`
+    guest.name = guest.name || `Guest_${now()}`
     guest.sId = socket.id
     guest.color = rnd({ luminosity: 'dark' })
-    guests.push(guest)
-    io.of('/occupapp-beta').emit('list-guests', guests)
+    setGuest(guest)
+    timestamp(guest)
+    emitListGuests()
     ack(guest)
   })
   socket.on('bye-bye', _ => {
-    guests = guests.filter(e => e.sId !== socket.id)
-    io.of('/occupapp-beta').emit('list-guests', guests)
+    deleteGuest(socket.id)
+    emitListGuests()
   })
 })
 
