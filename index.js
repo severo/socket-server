@@ -4,9 +4,15 @@ const http = require('http').Server(app)
 const io = require('socket.io')(http)
 const port = process.env.PORT || 3000
 const rnd = require('randomcolor')
+const { RateLimiterMemory } = require('rate-limiter-flexible')
 
 // TODO: add a public page that redirects to the GitHub repository
 // app.use(express.static(__dirname + '/public'))
+
+const rateLimiter = new RateLimiterMemory({
+  points: 2, // 5 points
+  duration: 1, // per second
+})
 
 const chat = io.on('connection', socket => {
   socket.on('chat', data => {
@@ -40,14 +46,26 @@ const onUpdateGuest = socket => (guest, ack) => {
   // For now, there is no difference with onNewGuest
   onNewGuest(socket)(guest, ack)
 }
-const onUpdateUrlQuerySpec = socket => (newUrlQuerySpec, ack) => {
+const onUpdateUrlQuerySpec = socket => async (newUrlQuerySpec, ack) => {
   console.log('new urlQuerySpec')
-  const guest = guests.get(socket.id)
-  if (guest !== undefined) {
-    touch(guest)
-    urlQuerySpec = newUrlQuerySpec
-    socket.broadcast.emit('urlqueryspec', urlQuerySpec)
-    ack(urlQuerySpec)
+  try {
+    await rateLimiter.consume(socket.id) // consume 1 point per event from IP
+    const guest = guests.get(socket.id)
+    if (guest !== undefined) {
+      touch(guest)
+      if (urlQuerySpec !== newUrlQuerySpec) {
+        // ?
+        urlQuerySpec = newUrlQuerySpec
+        socket.broadcast.emit('urlqueryspec', urlQuerySpec)
+      }
+      ack(urlQuerySpec)
+    }
+    console.log('OK')
+  } catch (rejRes) {
+    // no available points to consume
+    // emit error or warning message
+    socket.emit('blocked', { 'retry-ms': rejRes.msBeforeNext })
+    console.log('Blocked')
   }
 }
 const onByeBye = socket => _ => {
