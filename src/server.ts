@@ -1,8 +1,8 @@
-import { default as express } from 'express'
-const app = express()
-const http = require('http').Server(app)
-const io = require('socket.io')(http)
-const port = process.env.PORT || 3000
+import http from 'http'
+import express from 'express'
+import socketIo from 'socket.io'
+import { Socket } from './socket.io/socket'
+
 // const { RateLimiterMemory } = require('rate-limiter-flexible')
 
 //
@@ -79,7 +79,7 @@ const port = process.env.PORT || 3000
 //   io.of('/occupapp-beta').to(room.name).emit('list-profiles', room.profiles)
 // }
 //
-// const updateProfile = (socketId, profile, ack) => {
+// const updateProfile = (socketId: SocketIOClient.Socket['id'], profile, ack) => {
 //   // Validate payload
 //   const checkedProfile = UserProfile.checkProfile(profile)
 //   if (checkedProfile.error !== undefined) {
@@ -102,30 +102,17 @@ const port = process.env.PORT || 3000
 //     ack({ status: 'success', data: currentUser.profile })
 //   }
 // }
-//
-io.of('/occupapp-beta').on('connection', (socket: SocketIOClient.Socket) => {
-  // socket.on('update-profile', (profile, ack) => updateProfile(socket.id, profile, ack))
-  // rooms (unique room)
-  // socket.on('join', (userProfile, ack) => {
-  //   if (socket.rooms.includes(uniqueRoom)) {
-  //     ack({'status': 'error', 'reason': "Already in the room 'default room'"})
-  //   }
-  //   socket.join(uniqueRoom, () => {
-  //     // Add or update the guest in the list of
-  //     addGuest(socket, guestData, ack))
-  //
-  //     let rooms = Object.keys(socket.rooms);
-  //     console.log(rooms); // [ <socket.id>, 'room 237' ]
-  //     io.to('room 237').emit('a new user has joined the room'); // broadcast to everyone in the room
-  //   });
-  // }
-  // // socket.on('update-urlqueryspec', onUpdateUrlQuerySpec(socket))
-  // socket.on('disconnecting', () => removeGuest(socket))
-})
+
+const port: number = +process.env.PORT || 3000
+const app: express.Application = express()
+const server = http.createServer(<any>app)
+const io = socketIo(server)
+const socketServer = new Socket(io)
 
 if (require.main === module) {
-  http.listen(port, () => console.log('listening on port ' + port))
+  socketServer.connect()
+  server.listen(port)
 }
 
 // export the server so it can be easily called for testing
-export { http, io }
+export { server, socketServer }
