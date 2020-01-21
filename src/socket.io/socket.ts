@@ -1,5 +1,5 @@
 import { Constants } from './constants'
-import { Guard } from '../shared/index'
+import { Guard, ConsoleLogger } from '../shared/index'
 import {
   ConnectionEvent,
   InternalServerErrorEvent,
@@ -7,17 +7,10 @@ import {
 } from '../domain/events'
 import { User } from '../domain'
 
-const log = {
-  error: (context: string, message: string) =>
-    console.error(`${context} - ${message}`),
-  info: (context: string, message: string) =>
-    console.info(`${context} - ${message}`),
-}
-
 class Socket {
   private users: Map<SocketIOClient.Socket['id'], User> = new Map()
 
-  constructor(private io: SocketIO.Server) {}
+  constructor(private io: SocketIO.Server, private log = new ConsoleLogger()) {}
 
   public connect() {
     this.io
@@ -27,7 +20,7 @@ class Socket {
         try {
           socketUser = this.getOrCreateUser(socket.id)
         } catch (e) {
-          log.error(
+          this.log.error(
             'User could not be created or obtained on connection',
             e.message
           )
@@ -40,8 +33,11 @@ class Socket {
             try {
               updateUserName(data, ack)
             } catch (error) {
-              log.info('User name could not be updated', error.message)
-              ack({ updated: false, error })
+              this.log.info('User name could not be updated', error.message)
+              ack({
+                updated: false,
+                error: this.toException(error),
+              })
             }
           }
         )
@@ -124,15 +120,19 @@ class Socket {
     return user
   }
 
-  private emitInternalServerError(
-    socket: SocketIOClient.Socket,
-    error: Exception
-  ) {
+  private emitInternalServerError(socket: SocketIOClient.Socket, error: Error) {
     let internalServerErrorEvent = new InternalServerErrorEvent(error)
-    socket.emit(InternalServerErrorEvent.eventName, {
-      message: internalServerErrorEvent.error.message,
-      name: internalServerErrorEvent.error.name,
-    })
+    socket.emit(
+      InternalServerErrorEvent.eventName,
+      this.toException(internalServerErrorEvent.error)
+    )
+  }
+
+  private toException = (error: Error): Exception => {
+    return {
+      message: error.message,
+      name: error.name,
+    }
   }
 }
 

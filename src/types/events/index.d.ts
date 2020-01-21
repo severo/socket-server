@@ -1,5 +1,4 @@
 declare interface Exception {
-  id: string
   name: string
   message: string
 }
@@ -14,7 +13,7 @@ declare interface UpdateUserNameAck {
 
 declare interface UpdateUserNameAckArgs {
   updated: boolean
-  error?: Error
+  error?: Exception
 }
 
 // declare interface RoomJoinEventArgs {
