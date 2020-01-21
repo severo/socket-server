@@ -115,6 +115,7 @@ class Socket {
     if (user === undefined) {
       const newUser = new User(id)
       this.users.set(id, newUser)
+      this.log.info(`getOrCreateUser`, `New user created for socket ${id}`)
       return newUser
     }
     return user

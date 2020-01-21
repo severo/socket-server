@@ -1,6 +1,9 @@
 import ioClient from 'socket.io-client'
 import io from 'socket.io'
-import { expect } from 'chai'
+import { default as chai, expect } from 'chai'
+import chaiThings from 'chai-things'
+chai.should()
+chai.use(chaiThings)
 
 import { MockLogger } from '../shared/index'
 import { Socket } from './socket'
@@ -45,6 +48,16 @@ describe('Server', () => {
             done()
           })
         })
+        it('should create a new user', () => {
+          new Promise(resolve => client.on('connect', resolve))
+            .then(() => {
+              const logs = mockLogger.getInfoLogs()
+              logs.should.include.something.that.have.string(
+                'New user created for socket'
+              )
+            })
+            .then(() => client.disconnect())
+        })
       })
 
       describe('update-user-name', () => {
@@ -84,11 +97,8 @@ describe('Server', () => {
             ),
           ])
             .then(() => {
-              const errorLogs = mockLogger.getErrorLogs()
-              expect(errorLogs).to.have.length(0)
-              const infoLogs = mockLogger.getInfoLogs()
-              expect(infoLogs).to.have.length(1)
-              expect(infoLogs[0]).to.equal(
+              const logs = mockLogger.getInfoLogs()
+              logs.should.include.something.that.equals(
                 `User name could not be updated - Parameter <Object>.${expectedParameter} is required`
               )
               done()
