@@ -61,10 +61,47 @@ describe('Server', () => {
       })
 
       describe('update-user-name', () => {
-        it('should log info message for empty name and access should be false', (done: Function) => {
+        it('should log info message for empty data and updated should be false', (done: Function) => {
+          // arrange
+          const updateUserNameEventArgs: undefined = undefined
+          const updateUserNameEvent = new UpdateUserNameEvent(
+            updateUserNameEventArgs
+          )
+
+          new Promise(resolve =>
+            client.on('connect', () => {
+              // act
+              client.emit(
+                UpdateUserNameEvent.eventName,
+                updateUserNameEvent.data,
+                (value: UpdateUserNameAckArgs) => resolve(value)
+              )
+            })
+          )
+            .then((value: UpdateUserNameAckArgs) => {
+              // assert
+              expect(value).to.not.be.undefined
+              expect(value).to.have.property('updated', false)
+              expect(value).to.have.property('error')
+              expect(value.error).to.have.property('name', 'Error')
+              expect(value.error).to.have.property(
+                'message',
+                `Parameter data is required`
+              )
+
+              const logs = mockLogger.getInfoLogs()
+              logs.should.include.something.that.equals(
+                `User name could not be updated - Parameter data is required`
+              )
+              done()
+            })
+            .catch(e => done(e))
+        })
+
+        it('should log info message for empty name and updated should be false', (done: Function) => {
           // arrange
           const expectedParameter: string = 'name'
-          const updateUserNameEventArgs: { name: string } = { name: '' }
+          const updateUserNameEventArgs: UpdateUserNameEventArgs = { name: '' }
           const updateUserNameEvent = new UpdateUserNameEvent(
             updateUserNameEventArgs
           )
@@ -94,6 +131,38 @@ describe('Server', () => {
               logs.should.include.something.that.equals(
                 `User name could not be updated - Parameter <Object>.${expectedParameter} is required`
               )
+              done()
+            })
+            .catch(e => done(e))
+        })
+
+        it('should log info message for correct name, updated should be true and error should not exist', (done: Function) => {
+          // arrange
+          const updateUserNameEventArgs: UpdateUserNameEventArgs = {
+            name: 'George',
+          }
+          const updateUserNameEvent = new UpdateUserNameEvent(
+            updateUserNameEventArgs
+          )
+
+          new Promise(resolve =>
+            client.on('connect', () => {
+              // act
+              client.emit(
+                UpdateUserNameEvent.eventName,
+                updateUserNameEvent.data,
+                (value: UpdateUserNameAckArgs) => resolve(value)
+              )
+            })
+          )
+            .then((value: UpdateUserNameAckArgs) => {
+              // assert
+              expect(value).to.not.be.undefined
+              expect(value).to.have.property('updated', true)
+              expect(value).to.not.have.property('error')
+
+              const logs = mockLogger.getInfoLogs()
+              logs.should.include.something.that.equals(`User name updated`)
               done()
             })
             .catch(e => done(e))

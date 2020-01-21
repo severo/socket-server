@@ -12,12 +12,12 @@ describe('Loggers', () => {
       expect(logger.getInfoLogs()).to.have.length(0)
     })
 
-    it('should concatenate the context and message strings', () => {
+    it('should concatenate context and message (if present)', () => {
       // arrange
       const strings = [
         { context: 'in a function', message: 'undefined variable' },
-        { context: 'at startup', message: 'server started normally' },
         { context: 'at shutdown', message: 'server stopped normally' },
+        { context: 'at shutdown' },
       ]
 
       // assert
@@ -26,10 +26,10 @@ describe('Loggers', () => {
       ).to.equal('in a function - undefined variable')
       expect(
         MockLogger.forgeLog(strings[1].context, strings[1].message)
-      ).to.equal('at startup - server started normally')
+      ).to.equal('at shutdown - server stopped normally')
       expect(
         MockLogger.forgeLog(strings[2].context, strings[2].message)
-      ).to.equal('at shutdown - server stopped normally')
+      ).to.equal('at shutdown')
     })
 
     it('should keep track of error and info logs', () => {

@@ -18,7 +18,8 @@ describe('Loggers', () => {
       try {
         logger.info(infos[0].context, infos[0].message)
         logger.error(errors[0].context, errors[0].message)
-        logger.info(infos[1].context, infos[1].message)
+        logger.info(infos[1].context)
+        logger.error(errors[0].context)
         done()
       } catch (e) {
         done(e)

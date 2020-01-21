@@ -16,7 +16,10 @@ class Socket {
     this.io
       .of('/occupapp-beta')
       .on(ConnectionEvent.eventName, (socket: SocketIOClient.Socket) => {
-        const socketUser: User = this.getOrCreateUser(socket.id)
+        // Note that a new socket (and this socket.id) is created on each
+        // connection. There is no persistence for a same user between
+        // connections
+        const socketUser: User = this.createUser(socket.id)
 
         socket.on(
           UpdateUserNameEvent.eventName,
@@ -48,6 +51,7 @@ class Socket {
           // TODO: alternative: send mutation : room-guest-name-updated
           // this.emitLoggedUsersToRoom(socket, room)
 
+          this.log.info('User name updated')
           ack({ updated: true })
         }
 
@@ -101,15 +105,11 @@ class Socket {
       })
   }
 
-  private getOrCreateUser = (id: SocketIOClient.Socket['id']): User => {
-    const user = this.users.get(id)
-    if (user === undefined) {
-      const newUser = new User(id)
-      this.users.set(id, newUser)
-      this.log.info(`getOrCreateUser`, `New user created for socket ${id}`)
-      return newUser
-    }
-    return user
+  private createUser = (id: SocketIOClient.Socket['id']): User => {
+    const newUser = new User(id)
+    this.users.set(id, newUser)
+    this.log.info(`getOrCreateUser`, `New user created for socket ${id}`)
+    return newUser
   }
 
   // private emitInternalServerError(socket: SocketIOClient.Socket, error: Error) {
