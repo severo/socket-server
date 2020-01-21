@@ -2,7 +2,7 @@ import { Constants } from './constants'
 import { Guard, ConsoleLogger } from '../shared/index'
 import {
   ConnectionEvent,
-  InternalServerErrorEvent,
+  // InternalServerErrorEvent,
   UpdateUserNameEvent,
 } from '../domain/events'
 import { User } from '../domain'
@@ -16,16 +16,7 @@ class Socket {
     this.io
       .of('/occupapp-beta')
       .on(ConnectionEvent.eventName, (socket: SocketIOClient.Socket) => {
-        let socketUser: User
-        try {
-          socketUser = this.getOrCreateUser(socket.id)
-        } catch (e) {
-          this.log.error(
-            'User could not be created or obtained on connection',
-            e.message
-          )
-          this.emitInternalServerError(socket, e)
-        }
+        const socketUser: User = this.getOrCreateUser(socket.id)
 
         socket.on(
           UpdateUserNameEvent.eventName,
@@ -121,13 +112,13 @@ class Socket {
     return user
   }
 
-  private emitInternalServerError(socket: SocketIOClient.Socket, error: Error) {
-    let internalServerErrorEvent = new InternalServerErrorEvent(error)
-    socket.emit(
-      InternalServerErrorEvent.eventName,
-      this.toException(internalServerErrorEvent.error)
-    )
-  }
+  // private emitInternalServerError(socket: SocketIOClient.Socket, error: Error) {
+  //   let internalServerErrorEvent = new InternalServerErrorEvent(error)
+  //   socket.emit(
+  //     InternalServerErrorEvent.eventName,
+  //     this.toException(internalServerErrorEvent.error)
+  //   )
+  // }
 
   private toException = (error: Error): Exception => {
     return {
