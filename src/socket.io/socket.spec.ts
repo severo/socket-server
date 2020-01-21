@@ -60,259 +60,185 @@ describe('Server', () => {
       })
 
       describe('update-user-name', () => {
-        it('should log info message for empty data and updated should be false', (done: Function) => {
-          // arrange
-          const updateUserNameEventArgs: undefined = undefined
-          const updateUserNameEvent = new UpdateUserNameEvent(
-            updateUserNameEventArgs
-          )
+        let updateNameUser: (
+          args: UpdateUserNameEventArgs
+        ) => Promise<UpdateUserNameAckArgs>
 
-          new Promise(resolve =>
-            client.on('connect', () => {
-              // act
+        beforeEach(async () => {
+          await new Promise(resolve => client.on('connect', resolve))
+          updateNameUser = args =>
+            new Promise(resolve =>
               client.emit(
                 UpdateUserNameEvent.eventName,
-                updateUserNameEvent.data,
-                (value: UpdateUserNameAckArgs) => resolve(value)
+                new UpdateUserNameEvent(args).data,
+                resolve
               )
-            })
-          )
-            .then((value: UpdateUserNameAckArgs) => {
-              // assert
-              expect(value).to.not.be.undefined
-              expect(value).to.have.property('updated', false)
-              expect(value).to.have.property('error')
-              expect(value.error).to.have.property('name', 'Error')
-              expect(value.error).to.have.property(
-                'message',
-                `Parameter data is required`
-              )
-
-              const logs = mockLogger.getInfoLogs()
-              logs.should.include.something.that.equals(
-                `User name could not be updated - Parameter data is required`
-              )
-              done()
-            })
-            .catch(e => done(e))
+            )
         })
 
-        it('should log info message for empty name and updated should be false', (done: Function) => {
+        it('should log info message for empty data, and updated should be false', async () => {
           // arrange
-          const updateUserNameEventArgs: UpdateUserNameEventArgs = { name: '' }
-          const updateUserNameEvent = new UpdateUserNameEvent(
-            updateUserNameEventArgs
-          )
+          const args: undefined = undefined
 
-          new Promise(resolve =>
-            client.on('connect', () => {
-              // act
-              client.emit(
-                UpdateUserNameEvent.eventName,
-                updateUserNameEvent.data,
-                (value: UpdateUserNameAckArgs) => resolve(value)
-              )
-            })
-          )
-            .then((value: UpdateUserNameAckArgs) => {
-              // assert
-              expect(value).to.not.be.undefined
-              expect(value).to.have.property('updated', false)
-              expect(value).to.have.property('error')
-              expect(value.error).to.have.property('name', 'Error')
-              expect(value.error).to.have.property(
-                'message',
-                `Parameter <Object>.name is required`
-              )
+          // act
+          const value = await updateNameUser(args)
 
-              const logs = mockLogger.getInfoLogs()
-              logs.should.include.something.that.equals(
-                `User name could not be updated - Parameter <Object>.name is required`
-              )
-              done()
-            })
-            .catch(e => done(e))
+          // assert
+          expect(value).to.not.be.undefined
+          expect(value).to.have.property('updated', false)
+          expect(value).to.have.property('error')
+          expect(value.error).to.have.property('name', 'Error')
+          expect(value.error).to.have.property(
+            'message',
+            `Parameter data is required`
+          )
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(
+              `User name could not be updated - Parameter data is required`
+            )
         })
 
-        it('should log info message for correct name, updated should be true and error should not exist', (done: Function) => {
+        it('should log info message for empty name and updated should be false', async () => {
           // arrange
-          const updateUserNameEventArgs: UpdateUserNameEventArgs = {
-            name: 'George',
-          }
-          const updateUserNameEvent = new UpdateUserNameEvent(
-            updateUserNameEventArgs
-          )
+          const args = { name: '' }
 
-          new Promise(resolve =>
-            client.on('connect', () => {
-              // act
-              client.emit(
-                UpdateUserNameEvent.eventName,
-                updateUserNameEvent.data,
-                (value: UpdateUserNameAckArgs) => resolve(value)
-              )
-            })
-          )
-            .then((value: UpdateUserNameAckArgs) => {
-              // assert
-              expect(value).to.not.be.undefined
-              expect(value).to.have.property('updated', true)
-              expect(value).to.not.have.property('error')
+          // act
+          const value = await updateNameUser(args)
 
-              const logs = mockLogger.getInfoLogs()
-              logs.should.include.something.that.equals(`User name updated`)
-              done()
-            })
-            .catch(e => done(e))
+          // assert
+          expect(value).to.not.be.undefined
+          expect(value).to.have.property('updated', false)
+          expect(value).to.have.property('error')
+          expect(value.error).to.have.property('name', 'Error')
+          expect(value.error).to.have.property(
+            'message',
+            `Parameter <Object>.name is required`
+          )
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(
+              `User name could not be updated - Parameter <Object>.name is required`
+            )
+        })
+
+        it('should log info message for correct name, updated should be true and error should not exist', async () => {
+          // arrange
+          const args = { name: 'George' }
+
+          // act
+          const value = await updateNameUser(args)
+
+          // assert
+          expect(value).to.not.be.undefined
+          expect(value).to.have.property('updated', true)
+          expect(value).to.not.have.property('error')
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(`User name updated`)
         })
       })
 
       describe('update-user-color', () => {
-        it('should log info message for empty data and updated should be false', (done: Function) => {
-          // arrange
-          const updateUserColorEventArgs: undefined = undefined
-          const updateUserColorEvent = new UpdateUserColorEvent(
-            updateUserColorEventArgs
-          )
+        let updateColorUser: (
+          args: UpdateUserColorEventArgs
+        ) => Promise<UpdateUserColorAckArgs>
 
-          new Promise(resolve =>
-            client.on('connect', () => {
-              // act
+        beforeEach(async () => {
+          await new Promise(resolve => client.on('connect', resolve))
+          updateColorUser = args =>
+            new Promise(resolve =>
               client.emit(
                 UpdateUserColorEvent.eventName,
-                updateUserColorEvent.data,
-                (value: UpdateUserColorAckArgs) => resolve(value)
+                new UpdateUserColorEvent(args).data,
+                resolve
               )
-            })
-          )
-            .then((value: UpdateUserColorAckArgs) => {
-              // assert
-              expect(value).to.not.be.undefined
-              expect(value).to.have.property('updated', false)
-              expect(value).to.have.property('error')
-              expect(value.error).to.have.property('name', 'Error')
-              expect(value.error).to.have.property(
-                'message',
-                `Parameter data is required`
-              )
-
-              const logs = mockLogger.getInfoLogs()
-              logs.should.include.something.that.equals(
-                `User color could not be updated - Parameter data is required`
-              )
-              done()
-            })
-            .catch(e => done(e))
+            )
         })
 
-        it('should log info message for empty color and updated should be false', (done: Function) => {
+        it('should log info message for empty data and updated should be false', async () => {
           // arrange
-          const updateUserColorEventArgs: UpdateUserColorEventArgs = {
-            color: '',
-          }
-          const updateUserColorEvent = new UpdateUserColorEvent(
-            updateUserColorEventArgs
-          )
+          const args: undefined = undefined
 
-          new Promise(resolve =>
-            client.on('connect', () => {
-              // act
-              client.emit(
-                UpdateUserColorEvent.eventName,
-                updateUserColorEvent.data,
-                (value: UpdateUserColorAckArgs) => resolve(value)
-              )
-            })
-          )
-            .then((value: UpdateUserColorAckArgs) => {
-              // assert
-              expect(value).to.not.be.undefined
-              expect(value).to.have.property('updated', false)
-              expect(value).to.have.property('error')
-              expect(value.error).to.have.property('name', 'Error')
-              expect(value.error).to.have.property(
-                'message',
-                `Parameter <Object>.color is required`
-              )
+          // act
+          const value = await updateColorUser(args)
 
-              const logs = mockLogger.getInfoLogs()
-              logs.should.include.something.that.equals(
-                `User color could not be updated - Parameter <Object>.color is required`
-              )
-              done()
-            })
-            .catch(e => done(e))
+          // assert
+          expect(value).to.not.be.undefined
+          expect(value).to.have.property('updated', false)
+          expect(value).to.have.property('error')
+          expect(value.error).to.have.property('name', 'Error')
+          expect(value.error).to.have.property(
+            'message',
+            `Parameter data is required`
+          )
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(
+              `User color could not be updated - Parameter data is required`
+            )
         })
 
-        it('should log info message for invalid color and updated should be false', (done: Function) => {
+        it('should log info message for empty color and updated should be false', async () => {
           // arrange
-          const updateUserColorEventArgs: UpdateUserColorEventArgs = {
-            color: '1235g',
-          }
-          const updateUserColorEvent = new UpdateUserColorEvent(
-            updateUserColorEventArgs
-          )
+          const args = { color: '' }
 
-          new Promise(resolve =>
-            client.on('connect', () => {
-              // act
-              client.emit(
-                UpdateUserColorEvent.eventName,
-                updateUserColorEvent.data,
-                (value: UpdateUserColorAckArgs) => resolve(value)
-              )
-            })
-          )
-            .then((value: UpdateUserColorAckArgs) => {
-              // assert
-              expect(value).to.not.be.undefined
-              expect(value).to.have.property('updated', false)
-              expect(value).to.have.property('error')
-              expect(value.error).to.have.property('name', 'Error')
-              expect(value.error).to.have.property(
-                'message',
-                `Parameter <Object>.color has not an hexadecimal color format`
-              )
+          // act
+          const value = await updateColorUser(args)
 
-              const logs = mockLogger.getInfoLogs()
-              logs.should.include.something.that.equals(
-                `User color could not be updated - Parameter <Object>.color has not an hexadecimal color format`
-              )
-              done()
-            })
-            .catch(e => done(e))
+          // assert
+          expect(value).to.not.be.undefined
+          expect(value).to.have.property('updated', false)
+          expect(value).to.have.property('error')
+          expect(value.error).to.have.property('name', 'Error')
+          expect(value.error).to.have.property(
+            'message',
+            `Parameter <Object>.color is required`
+          )
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(
+              `User color could not be updated - Parameter <Object>.color is required`
+            )
         })
 
-        it('should log info message for correct name, updated should be true and error should not exist', (done: Function) => {
+        it('should log info message for invalid color and updated should be false', async () => {
           // arrange
-          const updateUserColorEventArgs: UpdateUserColorEventArgs = {
-            color: '#123BCA',
-          }
-          const updateUserColorEvent = new UpdateUserColorEvent(
-            updateUserColorEventArgs
-          )
+          const args = { color: '1235g' }
 
-          new Promise(resolve =>
-            client.on('connect', () => {
-              // act
-              client.emit(
-                UpdateUserColorEvent.eventName,
-                updateUserColorEvent.data,
-                (value: UpdateUserColorAckArgs) => resolve(value)
-              )
-            })
-          )
-            .then((value: UpdateUserColorAckArgs) => {
-              // assert
-              expect(value).to.not.be.undefined
-              expect(value).to.have.property('updated', true)
-              expect(value).to.not.have.property('error')
+          // act
+          const value = await updateColorUser(args)
 
-              const logs = mockLogger.getInfoLogs()
-              logs.should.include.something.that.equals(`User color updated`)
-              done()
-            })
-            .catch(e => done(e))
+          // assert
+          expect(value).to.not.be.undefined
+          expect(value).to.have.property('updated', false)
+          expect(value).to.have.property('error')
+          expect(value.error).to.have.property('name', 'Error')
+          expect(value.error).to.have.property(
+            'message',
+            `Parameter <Object>.color has not an hexadecimal color format`
+          )
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(
+              `User color could not be updated - Parameter <Object>.color has not an hexadecimal color format`
+            )
+        })
+
+        it('should log info message for correct name, updated should be true and error should not exist', async () => {
+          // arrange
+          const args = { color: '#123BCA' }
+
+          // act
+          const value = await updateColorUser(args)
+
+          // assert
+          expect(value).to.not.be.undefined
+          expect(value).to.have.property('updated', true)
+          expect(value).to.not.have.property('error')
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(`User color updated`)
         })
       })
 
