@@ -8,11 +8,9 @@ chai.use(chaiThings)
 import { MockLogger } from '../shared/index'
 import { Socket } from './socket'
 import {
-  // ConnectionEvent,
-  // InternalServerErrorEvent,
   UpdateUserNameEvent,
   UpdateUserColorEvent,
-} from '../domain/events'
+} from '../domain/events/toserver'
 
 const socketUrl: string = 'http://localhost:5000'
 const options: SocketIOClient.ConnectOpts = {

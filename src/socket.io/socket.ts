@@ -2,10 +2,9 @@ import { Constants } from './constants'
 import { Guard, ConsoleLogger } from '../shared/index'
 import {
   ConnectionEvent,
-  // InternalServerErrorEvent,
   UpdateUserNameEvent,
   UpdateUserColorEvent,
-} from '../domain/events'
+} from '../domain/events/toserver'
 import { User } from '../domain'
 
 class Socket {
