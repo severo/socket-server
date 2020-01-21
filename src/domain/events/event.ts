@@ -9,7 +9,7 @@ export class Event {
 
   // static readonly ListRooms = 'list-rooms'
   static readonly UpdateUserName = 'update-user-name'
-  // static readonly UpdateUserColor = 'update-user-color'
+  static readonly UpdateUserColor = 'update-user-color'
 
   static readonly InternalServerError = 'internal-server-error'
   // static readonly GuestsList = 'guests-list'

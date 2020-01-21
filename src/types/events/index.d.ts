@@ -16,6 +16,19 @@ declare interface UpdateUserNameAckArgs {
   error?: Exception
 }
 
+declare interface UpdateUserColorEventArgs {
+  color: string
+}
+
+declare interface UpdateUserColorAck {
+  ($data: UpdateUserColorAckArgs): void
+}
+
+declare interface UpdateUserColorAckArgs {
+  updated: boolean
+  error?: Exception
+}
+
 // declare interface RoomJoinEventArgs {
 //   roomId: string
 //   name: string

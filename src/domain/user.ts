@@ -3,6 +3,7 @@ import nanoid from 'nanoid'
 import rnd from 'randomcolor'
 
 // Validation
+// TODO: remove, or merge, with src/shared/validation?
 const nameSchema = Joi.string().min(1)
 const colorSchema = Joi.string().pattern(
   new RegExp('^#(?:[0-9a-fA-F]{3}){1,2}$')

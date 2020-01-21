@@ -18,6 +18,13 @@ export class Guard {
     )
   }
 
+  static throwIfStringNotAnHexColor(value: string, message: string) {
+    this.throwIfConditionIsTruthy(
+      RegExp('^#(?:[0-9a-fA-F]{3}){1,2}$').test(value) === false,
+      message
+    )
+  }
+
   static validate(condition: boolean, message: string) {
     this.throwIfConditionIsTruthy(condition, message)
   }

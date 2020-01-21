@@ -4,6 +4,7 @@ import {
   ConnectionEvent,
   // InternalServerErrorEvent,
   UpdateUserNameEvent,
+  UpdateUserColorEvent,
 } from '../domain/events'
 import { User } from '../domain'
 
@@ -52,6 +53,44 @@ class Socket {
           // this.emitLoggedUsersToRoom(socket, room)
 
           this.log.info('User name updated')
+          ack({ updated: true })
+        }
+
+        socket.on(
+          UpdateUserColorEvent.eventName,
+          (data: UpdateUserColorEventArgs, ack: UpdateUserColorAck) => {
+            try {
+              updateUserColor(data, ack)
+            } catch (error) {
+              this.log.info('User color could not be updated', error.message)
+              ack({
+                updated: false,
+                error: this.toException(error),
+              })
+            }
+          }
+        )
+
+        const updateUserColor = (
+          data: UpdateUserColorEventArgs,
+          ack: UpdateUserColorAck
+        ) => {
+          Guard.throwIfObjectUndefined(data, Constants.dataIsRequired)
+          Guard.throwIfStringNotDefinedOrEmpty(
+            data.color,
+            Constants.dataColorIsRequired
+          )
+          Guard.throwIfStringNotAnHexColor(
+            data.color,
+            Constants.dataColorHasNotHexFormat
+          )
+          socketUser.color = data.color
+
+          // TODO: emit list-room-guests to all the rooms where user is logged
+          // TODO: alternative: send mutation : room-guest-name-updated
+          // this.emitLoggedUsersToRoom(socket, room)
+
+          this.log.info('User color updated')
           ack({ updated: true })
         }
 
