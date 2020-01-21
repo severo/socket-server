@@ -69,34 +69,27 @@ describe('Server', () => {
             updateUserNameEventArgs
           )
 
-          Promise.all([
-            new Promise((resolve, reject) =>
-              client.on('connect', () => {
-                // act
-                client.emit(
-                  UpdateUserNameEvent.eventName,
-                  updateUserNameEvent.data,
-                  (value: UpdateUserNameAckArgs) => {
-                    try {
-                      // assert
-                      expect(value).to.not.be.undefined
-                      expect(value.updated).to.be.false
-                      expect(value.error).to.not.be.undefined
+          new Promise(resolve =>
+            client.on('connect', () => {
+              // act
+              client.emit(
+                UpdateUserNameEvent.eventName,
+                updateUserNameEvent.data,
+                (value: UpdateUserNameAckArgs) => resolve(value)
+              )
+            })
+          )
+            .then((value: UpdateUserNameAckArgs) => {
+              // assert
+              expect(value).to.not.be.undefined
+              expect(value).to.have.property('updated', false)
+              expect(value).to.have.property('error')
+              expect(value.error).to.have.property('name', 'Error')
+              expect(value.error).to.have.property(
+                'message',
+                `Parameter <Object>.${expectedParameter} is required`
+              )
 
-                      expect(value.error.name).to.equal('Error')
-                      expect(value.error.message).to.equal(
-                        `Parameter <Object>.${expectedParameter} is required`
-                      )
-                      resolve()
-                    } catch (e) {
-                      reject(e)
-                    }
-                  }
-                )
-              })
-            ),
-          ])
-            .then(() => {
               const logs = mockLogger.getInfoLogs()
               logs.should.include.something.that.equals(
                 `User name could not be updated - Parameter <Object>.${expectedParameter} is required`
