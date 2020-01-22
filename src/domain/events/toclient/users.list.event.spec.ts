@@ -24,12 +24,10 @@ describe('Events', () => {
       ]
 
       // act
-      let usersList = new UsersListEvent(exportedUsers)
+      const event = new UsersListEvent(exportedUsers)
 
       // assert
-      expect(usersList.exportedUsers).to.not.be.undefined
-      expect(usersList.exportedUsers).to.have.length(2)
-      expect(usersList.exportedUsers).to.equal(exportedUsers)
+      expect(event.exportedUsers).to.equal(exportedUsers)
     })
   })
 })

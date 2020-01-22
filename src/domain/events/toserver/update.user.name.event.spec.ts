@@ -9,10 +9,10 @@ describe('Events', () => {
 
     it('should initialize event data', () => {
       // arrange
-      let data = { name: 'George' }
+      const data = { name: 'George' }
 
       // act
-      let event = new UpdateUserNameEvent(data)
+      const event = new UpdateUserNameEvent(data)
 
       // assert
       expect(event.data.name).to.equal('George')

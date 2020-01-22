@@ -9,10 +9,10 @@ describe('Events', () => {
 
     it('should initialize event data', () => {
       // arrange
-      let data = { color: '#888444' }
+      const data = { color: '#888444' }
 
       // act
-      let event = new UpdateUserColorEvent(data)
+      const event = new UpdateUserColorEvent(data)
 
       // assert
       expect(event.data.color).to.equal('#888444')
