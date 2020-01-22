@@ -11,7 +11,7 @@ import {
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
-import { UsersListEvent } from '../domain/events/toclient'
+import { StateEvent, UsersListEvent } from '../domain/events/toclient'
 import { ExportedUser } from '../domain'
 
 const socketUrl: string = 'http://localhost:5000'
@@ -91,6 +91,19 @@ describe('Server', () => {
 
           // after
           newClient.disconnect()
+        })
+        it('should send an empty state to a new user meanwhile the state has not been changed', async () => {
+          // arrange
+          const getStateEvent = (): Promise<object> =>
+            new Promise(resolve =>
+              passiveClient.on(StateEvent.eventName, resolve)
+            )
+
+          // act
+          const state = await getStateEvent()
+
+          // assert
+          expect(state).to.deep.equal({})
         })
       })
 

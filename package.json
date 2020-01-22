@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@hapi/joi": "^17.1.0",
+    "automerge": "^0.12.1",
     "express": "^4.17.1",
     "nanoid": "^2.1.9",
     "randomcolor": "^0.5.4",

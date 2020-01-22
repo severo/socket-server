@@ -1,3 +1,4 @@
+import Automerge from 'automerge'
 import { Constants } from './constants'
 import { Guard, ConsoleLogger } from '../shared/index'
 import {
@@ -5,11 +6,12 @@ import {
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
-import { UsersListEvent } from '../domain/events/toclient'
+import { StateEvent, UsersListEvent } from '../domain/events/toclient'
 import { ExportedUser, User } from '../domain'
 
 class Socket {
   private users: Map<SocketIOClient.Socket['id'], User> = new Map()
+  private state = Automerge.init()
 
   constructor(private io: SocketIO.Server, private log = new ConsoleLogger()) {}
 
@@ -22,6 +24,7 @@ class Socket {
         // connections
         const socketUser: User = this.createUser(socket.id)
         this.emitUsersListToAll()
+        this.emitStateToUser(socket)
 
         socket.on(
           UpdateUserNameEvent.eventName,
@@ -167,6 +170,19 @@ class Socket {
 
   private get exportedUsers(): ExportedUser[] {
     return [...this.users.values()].map(user => user.export())
+  }
+
+  private emitStateToUser(socket: SocketIOClient.Socket) {
+    const stateEvent = new StateEvent(this.stateAsJson)
+    socket.emit(StateEvent.eventName, stateEvent.state)
+  }
+
+  // TODO: maybe the return type should be "any" as for the JOSN.parse function
+  // https://github.com/MazeChaZer/TypeScript/blob/master/src/lib/es5.d.ts#L966
+  private get stateAsJson(): object {
+    // No need to send the metadata, that could be heavy
+    // This means that the history is not included
+    return JSON.parse(JSON.stringify(this.state))
   }
 
   private toException = (error: Error): Exception => {
