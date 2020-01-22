@@ -11,6 +11,8 @@ import {
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
+import { UsersListEvent } from '../domain/events/toclient'
+import { ExportedUser } from '../domain'
 
 const socketUrl: string = 'http://localhost:5000'
 const options: SocketIOClient.ConnectOpts = {
@@ -24,7 +26,13 @@ describe('Server', () => {
       let server: SocketIO.Server
       let socket: Socket
       let client: SocketIOClient.Socket
+      let passiveClient: SocketIOClient.Socket
       let mockLogger: MockLogger
+
+      // order of the clients in the Socket class' 'users' property
+      // requires the clients to be connect in that order
+      const ACTIVE_CLIENT_IDX = 0
+      const PASSIVE_CLIENT_IDX = 1
 
       beforeEach(() => {
         server = io().listen(5000)
@@ -32,9 +40,11 @@ describe('Server', () => {
         socket = new Socket(server, mockLogger)
         socket.connect()
         client = ioClient.connect(socketUrl + '/occupapp-beta', options)
+        passiveClient = ioClient.connect(socketUrl + '/occupapp-beta', options)
       })
 
       afterEach(() => {
+        passiveClient.close()
         client.close()
         server.close()
       })
@@ -122,12 +132,21 @@ describe('Server', () => {
             )
         })
 
-        it('should log info message for correct name, updated should be true and error should not exist', async () => {
+        it('should log info message for valid name, updated should be true, error should not exist, and a users-list event should be sent', async () => {
           // arrange
+          await new Promise(resolve => passiveClient.on('connect', resolve))
+          const getUsersList = (): Promise<ExportedUser[]> =>
+            new Promise(resolve =>
+              passiveClient.on(UsersListEvent.eventName, resolve)
+            )
+
           const args = { name: 'George' }
 
           // act
-          const value = await updateNameUser(args)
+          const [value, list]: [
+            UpdateUserColorAckArgs,
+            ExportedUser[]
+          ] = await Promise.all([updateNameUser(args), getUsersList()])
 
           // assert
           expect(value).to.not.be.undefined
@@ -136,6 +155,11 @@ describe('Server', () => {
           mockLogger
             .getInfoLogs()
             .should.include.something.that.equals(`User name updated`)
+          expect(list).to.have.length(2)
+          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('name', 'George')
+          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('color')
+          expect(list[PASSIVE_CLIENT_IDX]).to.have.property('name')
+          expect(list[PASSIVE_CLIENT_IDX]).to.have.property('color')
         })
       })
 
@@ -225,12 +249,21 @@ describe('Server', () => {
             )
         })
 
-        it('should log info message for correct name, updated should be true and error should not exist', async () => {
+        it('should log info message for valid color, updated should be true, error should not exist, and a users-list event should be sent', async () => {
           // arrange
+          await new Promise(resolve => passiveClient.on('connect', resolve))
+          const getUsersList = (): Promise<ExportedUser[]> =>
+            new Promise(resolve =>
+              passiveClient.on(UsersListEvent.eventName, resolve)
+            )
+
           const args = { color: '#123BCA' }
 
           // act
-          const value = await updateColorUser(args)
+          const [value, list]: [
+            UpdateUserColorAckArgs,
+            ExportedUser[]
+          ] = await Promise.all([updateColorUser(args), getUsersList()])
 
           // assert
           expect(value).to.not.be.undefined
@@ -239,6 +272,11 @@ describe('Server', () => {
           mockLogger
             .getInfoLogs()
             .should.include.something.that.equals(`User color updated`)
+          expect(list).to.have.length(2)
+          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('name')
+          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('color', '#123BCA')
+          expect(list[PASSIVE_CLIENT_IDX]).to.have.property('name')
+          expect(list[PASSIVE_CLIENT_IDX]).to.have.property('color')
         })
       })
 

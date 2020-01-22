@@ -5,7 +5,8 @@ import {
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
-import { User } from '../domain'
+import { UsersListEvent } from '../domain/events/toclient'
+import { ExportedUser, User } from '../domain'
 
 class Socket {
   private users: Map<SocketIOClient.Socket['id'], User> = new Map()
@@ -47,9 +48,8 @@ class Socket {
           )
           socketUser.name = data.name
 
-          // TODO: emit list-room-guests to all the rooms where user is logged
-          // TODO: alternative: send mutation : room-guest-name-updated
-          // this.emitLoggedUsersToRoom(socket, room)
+          // TODO: alternative: send mutation : user-name-updated
+          this.emitUsersListToAll()
 
           this.log.info('User name updated')
           ack({ updated: true })
@@ -85,9 +85,8 @@ class Socket {
           )
           socketUser.color = data.color
 
-          // TODO: emit list-room-guests to all the rooms where user is logged
-          // TODO: alternative: send mutation : room-guest-name-updated
-          // this.emitLoggedUsersToRoom(socket, room)
+          // TODO: alternative: send mutation : user-color-updated
+          this.emitUsersListToAll()
 
           this.log.info('User color updated')
           ack({ updated: true })
@@ -157,6 +156,17 @@ class Socket {
   //     this.toException(internalServerErrorEvent.error)
   //   )
   // }
+
+  private emitUsersListToAll() {
+    const usersListEvent = new UsersListEvent(this.exportedUsers)
+    this.io
+      .of('/occupapp-beta')
+      .emit(UsersListEvent.eventName, usersListEvent.exportedUsers)
+  }
+
+  private get exportedUsers(): ExportedUser[] {
+    return [...this.users.values()].map(user => user.export())
+  }
 
   private toException = (error: Error): Exception => {
     return {

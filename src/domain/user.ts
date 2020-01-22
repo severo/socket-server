@@ -2,6 +2,11 @@ import Joi from '@hapi/joi'
 import nanoid from 'nanoid'
 import rnd from 'randomcolor'
 
+export interface ExportedUser {
+  name: string
+  color: string
+}
+
 // Validation
 // TODO: remove, or merge, with src/shared/validation?
 const nameSchema = Joi.string().min(1)
@@ -66,7 +71,14 @@ export class User {
     this._color = checkColor(color)
   }
 
-  touch() {
+  public export(): ExportedUser {
+    return {
+      name: this._name,
+      color: this._color,
+    }
+  }
+
+  public touch() {
     this._updated_at = new Date()
     this._expired_at = new Date(
       this._updated_at.getTime() + this._msUntilExpiration
