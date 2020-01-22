@@ -33,6 +33,7 @@ describe('Server', () => {
       // requires the clients to be connected in that order
       const ACTIVE_CLIENT_IDX = 0
       const PASSIVE_CLIENT_IDX = 1
+      const NEW_CLIENT_IDX = 2
 
       beforeEach(() => {
         server = io().listen(5000)
@@ -64,7 +65,7 @@ describe('Server', () => {
               'New user created for socket'
             )
         })
-        it('should send the list of users to all the clients', async () => {
+        it('should send the ordered list of users, and their id should correspond to client sockets ids', async () => {
           await new Promise(resolve => passiveClient.on('connect', resolve))
           const getUsersList = (): Promise<ExportedUser[]> =>
             new Promise(resolve =>
@@ -81,6 +82,12 @@ describe('Server', () => {
           expect(list).to.have.length(3)
           list.should.all.have.property('name')
           list.should.all.have.property('color')
+          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('id', client.id)
+          expect(list[PASSIVE_CLIENT_IDX]).to.have.property(
+            'id',
+            passiveClient.id
+          )
+          expect(list[NEW_CLIENT_IDX]).to.have.property('id', newClient.id)
 
           // after
           newClient.disconnect()
@@ -174,10 +181,8 @@ describe('Server', () => {
             .getInfoLogs()
             .should.include.something.that.equals(`User name updated`)
           expect(list).to.have.length(2)
-          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('name', 'George')
-          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('color')
-          expect(list[PASSIVE_CLIENT_IDX]).to.have.property('name')
-          expect(list[PASSIVE_CLIENT_IDX]).to.have.property('color')
+          const clientUser = list.find(user => user.id === client.id)
+          expect(clientUser).to.have.property('name', 'George')
         })
       })
 
@@ -291,10 +296,8 @@ describe('Server', () => {
             .getInfoLogs()
             .should.include.something.that.equals(`User color updated`)
           expect(list).to.have.length(2)
-          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('name')
-          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('color', '#123BCA')
-          expect(list[PASSIVE_CLIENT_IDX]).to.have.property('name')
-          expect(list[PASSIVE_CLIENT_IDX]).to.have.property('color')
+          const clientUser = list.find(user => user.id === client.id)
+          expect(clientUser).to.have.property('color', '#123BCA')
         })
       })
 

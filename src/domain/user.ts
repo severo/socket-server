@@ -3,6 +3,7 @@ import nanoid from 'nanoid'
 import rnd from 'randomcolor'
 
 export interface ExportedUser {
+  id: string
   name: string
   color: string
 }
@@ -73,6 +74,7 @@ export class User {
 
   public export(): ExportedUser {
     return {
+      id: this.id,
       name: this._name,
       color: this._color,
     }

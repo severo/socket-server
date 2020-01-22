@@ -11,8 +11,16 @@ describe('Events', () => {
     it('should initialize exportedUsers object', () => {
       // arrange
       const exportedUsers: ExportedUser[] = [
-        { name: 'Usain', color: '#FFFF00' },
-        { name: 'Bob', color: '#333' },
+        {
+          id: '/occupapp-beta#Mx8Ed_B2YStTu6O9AAAT',
+          name: 'Usain',
+          color: '#FFFF00',
+        },
+        {
+          id: '/occupapp-beta#yhlItvFv5dn7TC5PAAAU',
+          name: 'Bob',
+          color: '#333',
+        },
       ]
 
       // act
