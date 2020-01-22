@@ -15,7 +15,8 @@ import {
 import { StateEvent, UsersListEvent } from '../domain/events/toclient'
 import { ExportedUser } from '../domain'
 
-const socketUrl: string = 'http://localhost:5000'
+const PORT: number = 5000
+const socketUrl: string = `http://localhost:${PORT}`
 const options: SocketIOClient.ConnectOpts = {
   transports: ['websocket'],
   forceNew: true,
@@ -37,10 +38,12 @@ describe('Server', () => {
       const NEW_CLIENT_IDX = 2
 
       beforeEach(() => {
-        server = io().listen(5000)
+        server = io()
         mockLogger = new MockLogger()
         socket = new Socket(server, mockLogger)
         socket.connect()
+        server.listen(PORT)
+
         client = ioClient.connect(socketUrl + '/occupapp-beta', options)
         passiveClient = ioClient.connect(socketUrl + '/occupapp-beta', options)
       })
