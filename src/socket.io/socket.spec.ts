@@ -8,6 +8,7 @@ chai.use(chaiThings)
 import { MockLogger } from '../shared/index'
 import { Socket } from './socket'
 import {
+  UpdateStateEvent,
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
@@ -92,6 +93,7 @@ describe('Server', () => {
           // after
           newClient.disconnect()
         })
+
         it('should send an empty state to a new user meanwhile the state has not been changed', async () => {
           // arrange
           const getStateEvent = (): Promise<object> =>
@@ -104,6 +106,159 @@ describe('Server', () => {
 
           // assert
           expect(state).to.deep.equal({})
+        })
+      })
+
+      describe('update-state', () => {
+        let updateState: (
+          args: UpdateStateEventArgs
+        ) => Promise<UpdateStateAckArgs>
+
+        beforeEach(async () => {
+          await new Promise(resolve => client.on('connect', resolve))
+          updateState = args =>
+            new Promise(resolve =>
+              client.emit(
+                UpdateStateEvent.eventName,
+                new UpdateStateEvent(args).data,
+                resolve
+              )
+            )
+        })
+
+        it('should log info message for empty data, and updated should be false', async () => {
+          // arrange
+          const args: undefined = undefined
+
+          // act
+          const value = await updateState(args)
+
+          // assert
+          expect(value).to.not.be.undefined
+          expect(value).to.have.property('updated', false)
+          expect(value).to.have.property('error')
+          expect(value.error).to.have.property('name', 'TypeError')
+          expect(value.error).to.have.property(
+            'message',
+            'object null is not iterable (cannot read property Symbol(Symbol.iterator))'
+          )
+          mockLogger
+            .getInfoLogs()
+            .should.include.an.item.that.equals(
+              `State could not be updated - object null is not iterable (cannot read property Symbol(Symbol.iterator))`
+            )
+        })
+
+        it('should log success info message for empty changes array, and updated should be true, and error should not exist', async () => {
+          // arrange
+          const args: UpdateStateEventArgs = []
+
+          // act
+          const value = await updateState(args)
+
+          // assert
+          expect(value).to.not.be.undefined
+          expect(value).to.have.property('updated', true)
+          expect(value).to.not.have.property('error')
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(`State updated`)
+        })
+
+        // arrange
+        const newState = {
+          points: [{ x: 1, y: 2 }],
+          imageSrc: 'lake.png',
+        }
+        const changes: UpdateStateEventArgs = [
+          {
+            ops: [
+              {
+                action: 'makeList',
+                obj: 'be89e397-324c-4bec-932a-ae087a3177de',
+              },
+              {
+                action: 'ins',
+                obj: 'be89e397-324c-4bec-932a-ae087a3177de',
+                key: '_head',
+                elem: 1,
+              },
+              {
+                action: 'makeMap',
+                obj: '8b94a2c5-98c3-4ed9-8a18-ccae369cf168',
+              },
+              {
+                action: 'set',
+                obj: '8b94a2c5-98c3-4ed9-8a18-ccae369cf168',
+                key: 'x',
+                value: 1,
+              },
+              {
+                action: 'set',
+                obj: '8b94a2c5-98c3-4ed9-8a18-ccae369cf168',
+                key: 'y',
+                value: 2,
+              },
+              {
+                action: 'link',
+                obj: 'be89e397-324c-4bec-932a-ae087a3177de',
+                key: 'b6336846-12b7-4d8c-a4ab-949a3afd1903:1',
+                value: '8b94a2c5-98c3-4ed9-8a18-ccae369cf168',
+              },
+              {
+                action: 'link',
+                obj: '00000000-0000-0000-0000-000000000000',
+                key: 'points',
+                value: 'be89e397-324c-4bec-932a-ae087a3177de',
+              },
+              {
+                action: 'set',
+                obj: '00000000-0000-0000-0000-000000000000',
+                key: 'imageSrc',
+                value: 'lake.png',
+              },
+            ],
+            actor: 'b6336846-12b7-4d8c-a4ab-949a3afd1903',
+            seq: 1,
+            deps: {},
+          },
+        ]
+
+        it('should log info message for non-empty valid changes array, updated should be true, and error should not exist', async () => {
+          // act
+          const value = await updateState(changes)
+
+          // assert
+          expect(value).to.not.be.undefined
+          expect(value).to.have.property('updated', true)
+          expect(value).to.not.have.property('error')
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(`State updated`)
+        })
+
+        it('should send the current state to a new client, after the state had been updated', async () => {
+          // arrange
+          let newClient: SocketIOClient.Socket
+          const getStateEvent = (): Promise<object> => {
+            return new Promise(resolve => {
+              newClient = ioClient.connect(
+                socketUrl + '/occupapp-beta',
+                options
+              )
+              newClient.on(StateEvent.eventName, resolve)
+            })
+          }
+
+          // act
+          await updateState(changes)
+          const state = await getStateEvent()
+
+          // assert
+          expect(state).to.deep.equal(newState)
+
+          // after
+          newClient.disconnect()
         })
       })
 

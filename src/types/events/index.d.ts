@@ -3,6 +3,18 @@ declare interface Exception {
   message: string
 }
 
+// See https://stackoverflow.com/a/51114250/7351594
+type UpdateStateEventArgs = import('automerge').Change[]
+
+declare interface UpdateStateAck {
+  ($data: UpdateStateAckArgs): void
+}
+
+declare interface UpdateStateAckArgs {
+  updated: boolean
+  error?: Exception
+}
+
 declare interface UpdateUserNameEventArgs {
   name: string
 }

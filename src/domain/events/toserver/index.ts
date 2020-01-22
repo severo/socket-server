@@ -7,6 +7,7 @@ export * from './connection.event'
 // export * from "./kick.room.guest.event";
 // export * from "./list.rooms.event";
 
+export * from './update.state.event'
 export * from './update.user.name.event'
 export * from './update.user.color.event'
 // export * from "./list.users.event";

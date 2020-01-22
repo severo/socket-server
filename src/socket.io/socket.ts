@@ -3,6 +3,7 @@ import { Constants } from './constants'
 import { Guard, ConsoleLogger } from '../shared/index'
 import {
   ConnectionEvent,
+  UpdateStateEvent,
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
@@ -93,6 +94,37 @@ class Socket {
           this.emitUsersListToAll()
 
           this.log.info('User color updated')
+          ack({ updated: true })
+        }
+
+        socket.on(
+          UpdateStateEvent.eventName,
+          (data: UpdateStateEventArgs, ack: UpdateStateAck) => {
+            try {
+              updateState(data, ack)
+            } catch (error) {
+              this.log.info('State could not be updated', error.message)
+              ack({
+                updated: false,
+                error: this.toException(error),
+              })
+            }
+          }
+        )
+
+        const updateState = (
+          data: UpdateStateEventArgs,
+          ack: UpdateStateAck
+        ) => {
+          // We let automerge throw if the data is malformed
+          this.state = Automerge.applyChanges(this.state, data)
+
+          // The server doesn't send the changes to the other clients
+          // It's the task of the client that updated the state to send it to
+          // them. Using websockets, the latency between two clients will be
+          // lower than adding an intermediate step through the server)
+
+          this.log.info('State updated')
           ack({ updated: true })
         }
 

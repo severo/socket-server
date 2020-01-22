@@ -8,6 +8,7 @@ export class EventToServer {
   // static readonly KickRoomGuest = 'kick-room-guest'
   // static readonly ListRooms = 'list-rooms'
 
+  static readonly UpdateState = 'update-state'
   static readonly UpdateUserName = 'update-user-name'
   static readonly UpdateUserColor = 'update-user-color'
   // static readonly ListUsers = 'list-users'
