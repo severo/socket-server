@@ -30,7 +30,7 @@ describe('Server', () => {
       let mockLogger: MockLogger
 
       // order of the clients in the Socket class' 'users' property
-      // requires the clients to be connect in that order
+      // requires the clients to be connected in that order
       const ACTIVE_CLIENT_IDX = 0
       const PASSIVE_CLIENT_IDX = 1
 
@@ -53,9 +53,6 @@ describe('Server', () => {
         beforeEach(async () => {
           await new Promise(resolve => client.on('connect', resolve))
         })
-        afterEach(() => {
-          client.disconnect()
-        })
 
         it('should connect socket', async () => {
           expect(client.connected).to.be.true
@@ -66,6 +63,27 @@ describe('Server', () => {
             .should.include.something.that.have.string(
               'New user created for socket'
             )
+        })
+        it('should send the list of users to all the clients', async () => {
+          await new Promise(resolve => passiveClient.on('connect', resolve))
+          const getUsersList = (): Promise<ExportedUser[]> =>
+            new Promise(resolve =>
+              passiveClient.on(UsersListEvent.eventName, resolve)
+            )
+
+          // act
+          const [list, newClient] = await Promise.all([
+            getUsersList(),
+            ioClient.connect(socketUrl + '/occupapp-beta', options),
+          ])
+
+          // assert
+          expect(list).to.have.length(3)
+          list.should.all.have.property('name')
+          list.should.all.have.property('color')
+
+          // after
+          newClient.disconnect()
         })
       })
 

@@ -21,6 +21,7 @@ class Socket {
         // connection. There is no persistence for a same user between
         // connections
         const socketUser: User = this.createUser(socket.id)
+        this.emitUsersListToAll()
 
         socket.on(
           UpdateUserNameEvent.eventName,
