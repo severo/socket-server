@@ -50,22 +50,22 @@ describe('Server', () => {
       })
 
       describe('connect', () => {
-        it('should connect socket', (done: Function) => {
-          client.on('connect', () => {
-            expect(client.connected).to.be.true
-            client.disconnect()
-            done()
-          })
+        beforeEach(async () => {
+          await new Promise(resolve => client.on('connect', resolve))
         })
-        it('should create a new user', () => {
-          new Promise(resolve => client.on('connect', resolve))
-            .then(() => {
-              const logs = mockLogger.getInfoLogs()
-              logs.should.include.something.that.have.string(
-                'New user created for socket'
-              )
-            })
-            .then(() => client.disconnect())
+        afterEach(() => {
+          client.disconnect()
+        })
+
+        it('should connect socket', async () => {
+          expect(client.connected).to.be.true
+        })
+        it('should create a new user', async () => {
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.have.string(
+              'New user created for socket'
+            )
         })
       })
 
