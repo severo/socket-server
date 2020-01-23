@@ -3,6 +3,7 @@ import { Constants } from './constants'
 import { Guard, ConsoleLogger } from '../shared/index'
 import {
   ConnectEvent,
+  DisconnectEvent,
   UpdateStateEvent,
   UpdateUserNameEvent,
   UpdateUserColorEvent,
@@ -28,6 +29,16 @@ class Socket {
         const socketUser: User = this.createUser(socket.id)
         this.emitUsersListToAll()
         this.emitStateToUser(socket)
+
+        socket.on(DisconnectEvent.eventName, (reason: string) => {
+          this.log.info(
+            `Disconnection from socket ${socket.id} - reason: ${reason}`
+          )
+          if (this.removeUser(socket.id)) {
+            // TODO: alternative: send mutation : user-removed
+            this.emitUsersListToAll()
+          }
+        })
 
         socket.on(
           UpdateUserNameEvent.eventName,
@@ -137,6 +148,14 @@ class Socket {
     this.users.set(id, newUser)
     this.log.info(`createUser`, `New user created (client socket ${id})`)
     return newUser
+  }
+
+  private removeUser = (id: SocketIOClient.Socket['id']): boolean => {
+    const removed: boolean = this.users.delete(id)
+    if (removed) {
+      this.log.info(`removeUser`, `User removed (client socket ${id})`)
+    }
+    return removed
   }
 
   // private emitInternalServerError(socket: SocketIOClient.Socket, error: Error) {

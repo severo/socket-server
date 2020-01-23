@@ -1,6 +1,6 @@
 export class EventToServer {
   static readonly Connect = 'connect'
-  // static readonly Disconnection = 'disconnection'
+  static readonly Disconnect = 'disconnect'
 
   // static readonly JoinRoom = 'join-room'
   // static readonly LeaveRoom = 'leave-room'

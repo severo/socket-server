@@ -118,6 +118,90 @@ describe('Server', () => {
         })
       })
 
+      describe('disconnect', () => {
+        let newClient: SocketIOClient.Socket
+        let newClientId: SocketIOClient.Socket['id']
+        let getUsersList: Promise<ExportedUser[]>
+
+        beforeEach(async () => {
+          newClient = ioClient.connect(socketUrl + '/occupapp-beta', options)
+          // Note: the newClient.id must be polled after the 'connect' event has
+          // been received
+          await new Promise(resolve => newClient.on('connect', resolve))
+          newClientId = newClient.id
+          getUsersList = new Promise(resolve =>
+            client.on(UsersListEvent.eventName, resolve)
+          )
+        })
+
+        // TODO: test that the user is removed if connection is lost, or comes
+        // from the server side?
+        // For example, that the "ghosts" users are removed correctly
+        // See https://socket.io/docs/client-api/#new-Manager-url-options
+        // > timeout | 20000 | connection timeout before a connect_error and
+        // >         |       | connect_timeout events are emitted
+        //
+        // The client should be disconnected after the timeout, and the user
+        // should be removed from the list
+        // Is it possible to simulate this in test? See socket.io integration
+        // tests for reference
+        it('should disconnect socket', async () => {
+          // act
+          newClient.disconnect()
+
+          //assert
+          expect(newClient.connected).to.be.false
+        })
+        it('should send the ordered list of users', async () => {
+          // act
+          newClient.disconnect()
+          const list = await getUsersList
+
+          // assert
+          expect(list).to.exist
+          list.should.all.have.property('name')
+          list.should.all.have.property('color')
+        })
+        it('should not include the disconnected socket id in the list of users', async () => {
+          // act
+          newClient.disconnect()
+          const list = await getUsersList
+
+          // assert
+          list.should.not.include.something.that.has.property('id', newClientId)
+        })
+        it('should include the other connected users', async () => {
+          // act
+          newClient.disconnect()
+          const list = await getUsersList
+
+          // assert
+          expect(list).to.have.length(2)
+          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('id', client.id)
+          expect(list[PASSIVE_CLIENT_IDX]).to.have.property(
+            'id',
+            passiveClient.id
+          )
+        })
+        it('should log that the socket has been disconnected and the user has been removed', async () => {
+          // act
+          newClient.disconnect()
+          await getUsersList
+
+          // assert
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(
+              `Disconnection from socket ${newClientId} - reason: client namespace disconnect`
+            )
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(
+              `removeUser - User removed (client socket ${newClientId})`
+            )
+        })
+      })
+
       describe('update-state', () => {
         let updateState: (
           args: UpdateStateEventArgs

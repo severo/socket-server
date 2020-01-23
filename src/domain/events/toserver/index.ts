@@ -1,5 +1,5 @@
 export * from './connect.event'
-// export * from './disconnection.event'
+export * from './disconnect.event'
 
 // export * from './join.room.event'
 // export * from "./leave.room.event";
