@@ -20,6 +20,8 @@ class Socket {
     this.io
       .of('/occupapp-beta')
       .on(ConnectEvent.eventName, (socket: SocketIOClient.Socket) => {
+        this.log.info(`Connection from socket ${socket.id}`)
+
         // Note that a new socket (and this socket.id) is created on each
         // connection. There is no persistence for a same user between
         // connections

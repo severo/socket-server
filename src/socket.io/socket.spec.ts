@@ -65,11 +65,17 @@ describe('Server', () => {
         it('should create a new user', async () => {
           mockLogger
             .getInfoLogs()
-            .should.include.something.that.have.string(
-              'New user created (client socket'
+            .should.include.something.that.equals(
+              `Connection from socket ${client.id}`
+            )
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(
+              `createUser - New user created (client socket ${client.id})`
             )
         })
         it('should send the ordered list of users, and their id should correspond to client sockets ids', async () => {
+          // arrange
           await new Promise(resolve => passiveClient.on('connect', resolve))
           const getUsersList = (): Promise<ExportedUser[]> =>
             new Promise(resolve =>
