@@ -12,7 +12,7 @@ import { StateEvent, UsersListEvent } from '../domain/events/toclient'
 import { ExportedUser, User } from '../domain'
 
 class Socket {
-  private users: Map<SocketIOClient.Socket['id'], User> = new Map()
+  private users: Map<SocketIO.Socket['id'], User> = new Map()
   private state = Automerge.init()
 
   constructor(private io: SocketIO.Server, private log = new ConsoleLogger()) {}
@@ -20,7 +20,7 @@ class Socket {
   public connect() {
     this.io
       .of('/occupapp-beta')
-      .on(ConnectEvent.eventName, (socket: SocketIOClient.Socket) => {
+      .on(ConnectEvent.eventName, (socket: SocketIO.Socket) => {
         this.log.info(`Connection from socket ${socket.id}`)
 
         // Note that a new socket (and this socket.id) is created on each
@@ -130,12 +130,11 @@ class Socket {
           ack: UpdateStateAck
         ) => {
           // We let automerge throw if the data is malformed
+          // By the way, the state is persisted locally to send to the next
+          // client that will connect
           this.state = Automerge.applyChanges(this.state, data)
 
-          // The server doesn't send the changes to the other clients
-          // It's the task of the client that updated the state to send it to
-          // them. Using websockets, the latency between two clients will be
-          // lower than adding an intermediate step through the server)
+          // TODO: Send to the other users in the namespace
 
           this.log.info('State updated')
           ack({ updated: true })
@@ -143,14 +142,14 @@ class Socket {
       })
   }
 
-  private createUser = (id: SocketIOClient.Socket['id']): User => {
+  private createUser = (id: SocketIO.Socket['id']): User => {
     const newUser = new User(id)
     this.users.set(id, newUser)
     this.log.info(`createUser`, `New user created (client socket ${id})`)
     return newUser
   }
 
-  private removeUser = (id: SocketIOClient.Socket['id']): boolean => {
+  private removeUser = (id: SocketIO.Socket['id']): boolean => {
     const removed: boolean = this.users.delete(id)
     if (removed) {
       this.log.info(`removeUser`, `User removed (client socket ${id})`)
@@ -158,7 +157,7 @@ class Socket {
     return removed
   }
 
-  // private emitInternalServerError(socket: SocketIOClient.Socket, error: Error) {
+  // private emitInternalServerError(socket: SocketIO.Socket, error: Error) {
   //   let internalServerErrorEvent = new InternalServerErrorEvent(error)
   //   socket.emit(
   //     InternalServerErrorEvent.eventName,
@@ -177,7 +176,7 @@ class Socket {
     return [...this.users.values()].map(user => user.export())
   }
 
-  private emitStateToUser(socket: SocketIOClient.Socket) {
+  private emitStateToUser(socket: SocketIO.Socket) {
     const stateEvent = new StateEvent(this.stateAsJson)
     socket.emit(StateEvent.eventName, stateEvent.state)
   }

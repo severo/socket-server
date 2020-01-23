@@ -34,7 +34,7 @@ const randomColor = () => checkColor(rnd({ luminosity: 'dark' }))
 const MS_UNTIL_EXPIRATION: number = 10 * 60 * 1000
 
 export class User {
-  private _socketId: SocketIOClient.Socket['id']
+  private _socketId: SocketIO.Socket['id']
   private _name: string
   private _color: string
   private _updated_at: Date
@@ -42,7 +42,7 @@ export class User {
   private _msUntilExpiration: number
 
   constructor(
-    socketId: SocketIOClient.Socket['id'],
+    socketId: SocketIO.Socket['id'],
     { msUntilExpiration = MS_UNTIL_EXPIRATION } = {
       msUntilExpiration: MS_UNTIL_EXPIRATION,
     }
