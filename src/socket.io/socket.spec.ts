@@ -330,7 +330,45 @@ describe('Server', () => {
             .should.include.something.that.equals(`State updated`)
         })
 
-        it('should send the current state to a new client, after the state had been updated', async () => {
+        it('should log send the same event to the other clients', async () => {
+          // arrange
+          await new Promise(resolve => passiveClient.on('connect', resolve))
+          const getStateChanges: Promise<UpdateStateEventArgs> = new Promise(
+            resolve => passiveClient.on(UpdateStateEvent.eventName, resolve)
+          )
+
+          // act
+          const [receivedChanges] = await Promise.all([
+            getStateChanges,
+            updateState(changes),
+          ])
+
+          // assert
+          expect(receivedChanges).to.not.be.undefined
+          expect(receivedChanges).to.deep.equal(changes)
+        })
+
+        it('should log not send the same event to the sender', async () => {
+          // arrange
+          const getStateChanges: Promise<UpdateStateEventArgs> = new Promise(
+            resolve => client.on(UpdateStateEvent.eventName, resolve)
+          )
+          const waitFor100ms = new Promise(resolve =>
+            setTimeout(() => resolve('Nothing received'), 100)
+          )
+
+          // act
+          const [receivedChanges] = await Promise.all([
+            Promise.race([getStateChanges, waitFor100ms]),
+
+            updateState(changes),
+          ])
+
+          // assert
+          expect(receivedChanges).to.equal('Nothing received')
+        })
+
+        it('should send the persisted state to a new client, after the state had been updated', async () => {
           // arrange
           let newClient: SocketIOClient.Socket
           const getStateEvent = (): Promise<object> => {

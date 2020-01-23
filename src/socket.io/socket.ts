@@ -134,7 +134,8 @@ class Socket {
           // client that will connect
           this.state = Automerge.applyChanges(this.state, data)
 
-          // TODO: Send to the other users in the namespace
+          // Send to the other users in the namespace
+          this.emitUpdateStateToOthers(socket, data)
 
           this.log.info('State updated')
           ack({ updated: true })
@@ -166,6 +167,7 @@ class Socket {
   // }
 
   private emitUsersListToAll() {
+    // TODO: add log?
     const usersListEvent = new UsersListEvent(this.exportedUsers)
     this.io
       .of('/occupapp-beta')
@@ -177,8 +179,18 @@ class Socket {
   }
 
   private emitStateToUser(socket: SocketIO.Socket) {
+    // TODO: add log?
     const stateEvent = new StateEvent(this.stateAsJson)
     socket.emit(StateEvent.eventName, stateEvent.state)
+  }
+
+  private emitUpdateStateToOthers(
+    socket: SocketIO.Socket,
+    data: UpdateStateEventArgs
+  ) {
+    // TODO: add log?
+    const updateStateEvent = new UpdateStateEvent(data)
+    socket.broadcast.emit(UpdateStateEvent.eventName, updateStateEvent.data)
   }
 
   // TODO: maybe the return type should be "any" as for the JOSN.parse function
