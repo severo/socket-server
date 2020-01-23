@@ -66,7 +66,7 @@ describe('Server', () => {
           mockLogger
             .getInfoLogs()
             .should.include.something.that.have.string(
-              'New user created for socket'
+              'New user created (client socket'
             )
         })
         it('should send the ordered list of users, and their id should correspond to client sockets ids', async () => {

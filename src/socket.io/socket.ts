@@ -2,7 +2,7 @@ import Automerge from 'automerge'
 import { Constants } from './constants'
 import { Guard, ConsoleLogger } from '../shared/index'
 import {
-  ConnectionEvent,
+  ConnectEvent,
   UpdateStateEvent,
   UpdateUserNameEvent,
   UpdateUserColorEvent,
@@ -19,7 +19,7 @@ class Socket {
   public connect() {
     this.io
       .of('/occupapp-beta')
-      .on(ConnectionEvent.eventName, (socket: SocketIOClient.Socket) => {
+      .on(ConnectEvent.eventName, (socket: SocketIOClient.Socket) => {
         // Note that a new socket (and this socket.id) is created on each
         // connection. There is no persistence for a same user between
         // connections
@@ -133,7 +133,7 @@ class Socket {
   private createUser = (id: SocketIOClient.Socket['id']): User => {
     const newUser = new User(id)
     this.users.set(id, newUser)
-    this.log.info(`getOrCreateUser`, `New user created for socket ${id}`)
+    this.log.info(`createUser`, `New user created (client socket ${id})`)
     return newUser
   }
 
