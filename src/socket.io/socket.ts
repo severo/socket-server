@@ -180,7 +180,7 @@ class Socket {
 
   private emitStateToUser(socket: SocketIO.Socket) {
     // TODO: add log?
-    const stateEvent = new StateEvent(this.stateAsJson)
+    const stateEvent = new StateEvent(this.savedAutomergeState)
     socket.emit(StateEvent.eventName, stateEvent.state)
   }
 
@@ -193,12 +193,8 @@ class Socket {
     socket.broadcast.emit(UpdateStateEvent.eventName, updateStateEvent.data)
   }
 
-  // TODO: maybe the return type should be "any" as for the JOSN.parse function
-  // https://github.com/MazeChaZer/TypeScript/blob/master/src/lib/es5.d.ts#L966
-  private get stateAsJson(): object {
-    // No need to send the metadata, that could be heavy
-    // This means that the history is not included
-    return JSON.parse(JSON.stringify(this.state))
+  private get savedAutomergeState(): string {
+    return Automerge.save(this.state)
   }
 
   private toException = (error: Error): Exception => {

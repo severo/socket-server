@@ -6,12 +6,9 @@ describe('Events', () => {
     it("should have 'state' event as name", () => {
       expect(StateEvent.eventName).to.equal('state')
     })
-    it('should initialize an object', () => {
+    it('should initialize a string', () => {
       // arrange
-      const state: object = {
-        points: [{ x: 1, y: 2 }],
-        imageSrc: 'lake.png',
-      }
+      const state: string = `["~#iL",[]]`
 
       // act
       const event = new StateEvent(state)

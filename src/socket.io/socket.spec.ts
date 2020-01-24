@@ -1,5 +1,6 @@
 import ioClient from 'socket.io-client'
 import io from 'socket.io'
+import Automerge from 'automerge'
 import { default as chai, expect } from 'chai'
 import chaiThings from 'chai-things'
 chai.should()
@@ -103,9 +104,9 @@ describe('Server', () => {
           newClient.disconnect()
         })
 
-        it('should send an empty state to a new user meanwhile the state has not been changed', async () => {
+        it('should send an empty Automerge state to a new user meanwhile the state has not been changed', async () => {
           // arrange
-          const getStateEvent = (): Promise<object> =>
+          const getStateEvent = (): Promise<string> =>
             new Promise(resolve =>
               passiveClient.on(StateEvent.eventName, resolve)
             )
@@ -114,7 +115,7 @@ describe('Server', () => {
           const state = await getStateEvent()
 
           // assert
-          expect(state).to.deep.equal({})
+          expect(Automerge.load(state)).to.deep.equal({})
         })
       })
 
@@ -330,7 +331,7 @@ describe('Server', () => {
             .should.include.something.that.equals(`State updated`)
         })
 
-        it('should log send the same event to the other clients', async () => {
+        it('should send the same event to the other clients', async () => {
           // arrange
           await new Promise(resolve => passiveClient.on('connect', resolve))
           const getStateChanges: Promise<UpdateStateEventArgs> = new Promise(
@@ -348,7 +349,7 @@ describe('Server', () => {
           expect(receivedChanges).to.deep.equal(changes)
         })
 
-        it('should log not send the same event to the sender', async () => {
+        it('should not send the same event to the sender', async () => {
           // arrange
           const getStateChanges: Promise<UpdateStateEventArgs> = new Promise(
             resolve => client.on(UpdateStateEvent.eventName, resolve)
@@ -371,7 +372,7 @@ describe('Server', () => {
         it('should send the persisted state to a new client, after the state had been updated', async () => {
           // arrange
           let newClient: SocketIOClient.Socket
-          const getStateEvent = (): Promise<object> => {
+          const getStateEvent = (): Promise<string> => {
             return new Promise(resolve => {
               newClient = ioClient.connect(
                 socketUrl + '/occupapp-beta',
@@ -386,7 +387,7 @@ describe('Server', () => {
           const state = await getStateEvent()
 
           // assert
-          expect(state).to.deep.equal(newState)
+          expect(Automerge.load(state)).to.deep.equal(newState)
 
           // after
           newClient.disconnect()
