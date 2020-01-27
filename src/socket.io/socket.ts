@@ -8,7 +8,11 @@ import {
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
-import { StateEvent, UsersListEvent } from '../domain/events/toclient'
+import {
+  ResetStateEvent,
+  SendStateEvent,
+  UsersListEvent,
+} from '../domain/events/toclient'
 import { ExportedUser, User } from '../domain'
 
 class Socket {
@@ -27,8 +31,12 @@ class Socket {
         // connection. There is no persistence for a same user between
         // connections
         const socketUser: User = this.createUser(socket.id)
-        this.emitUsersListToAll()
-        this.emitStateToUser(socket)
+        if (this.users.size === 1) {
+          this.emitSendStateToUser(socket)
+        } else {
+          this.emitUsersListToAll()
+          this.emitResetStateToUser(socket)
+        }
 
         socket.on(DisconnectEvent.eventName, (reason: string) => {
           this.log.info(
@@ -158,14 +166,6 @@ class Socket {
     return removed
   }
 
-  // private emitInternalServerError(socket: SocketIO.Socket, error: Error) {
-  //   let internalServerErrorEvent = new InternalServerErrorEvent(error)
-  //   socket.emit(
-  //     InternalServerErrorEvent.eventName,
-  //     this.toException(internalServerErrorEvent.error)
-  //   )
-  // }
-
   private emitUsersListToAll() {
     // TODO: add log?
     const usersListEvent = new UsersListEvent(this.exportedUsers)
@@ -178,10 +178,39 @@ class Socket {
     return [...this.users.values()].map(user => user.export())
   }
 
-  private emitStateToUser(socket: SocketIO.Socket) {
+  private emitResetStateToUser(socket: SocketIO.Socket) {
     // TODO: add log?
-    const stateEvent = new StateEvent(this.stateAsJson)
-    socket.emit(StateEvent.eventName, stateEvent.state)
+    const resetStateEvent = new ResetStateEvent(this.savedAutomergeState)
+    socket.emit(ResetStateEvent.eventName, resetStateEvent.state)
+  }
+
+  private emitSendStateToUser(socket: SocketIO.Socket) {
+    // TODO: add log?
+    socket.emit(SendStateEvent.eventName, (args: SendStateAckArgs) => {
+      if (args.sent === false) {
+        this.log.info(
+          'State has not been returned by the client',
+          args.error ? args.error.message : 'no error sent by the client'
+        )
+      }
+
+      try {
+        this.state = Automerge.load(args.state)
+      } catch (error) {
+        this.log.info('State could not be loaded', error.message)
+      }
+
+      // Send to the other users in the namespace (if there are other users)
+      this.emitResetStateToOthers(socket)
+
+      this.log.info('State reset from client')
+    })
+  }
+
+  private emitResetStateToOthers(socket: SocketIO.Socket) {
+    // TODO: add log?
+    const resetStateEvent = new ResetStateEvent(this.savedAutomergeState)
+    socket.broadcast.emit(ResetStateEvent.eventName, resetStateEvent.state)
   }
 
   private emitUpdateStateToOthers(
@@ -193,12 +222,8 @@ class Socket {
     socket.broadcast.emit(UpdateStateEvent.eventName, updateStateEvent.data)
   }
 
-  // TODO: maybe the return type should be "any" as for the JOSN.parse function
-  // https://github.com/MazeChaZer/TypeScript/blob/master/src/lib/es5.d.ts#L966
-  private get stateAsJson(): object {
-    // No need to send the metadata, that could be heavy
-    // This means that the history is not included
-    return JSON.parse(JSON.stringify(this.state))
+  private get savedAutomergeState(): string {
+    return Automerge.save(this.state)
   }
 
   private toException = (error: Error): Exception => {

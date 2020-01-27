@@ -3,6 +3,16 @@ declare interface Exception {
   message: string
 }
 
+declare interface SendStateAck {
+  ($data: SendStateAckArgs): void
+}
+
+declare interface SendStateAckArgs {
+  sent: boolean
+  state: string
+  error?: Exception
+}
+
 // See https://stackoverflow.com/a/51114250/7351594
 type UpdateStateEventArgs = import('automerge').Change[]
 
