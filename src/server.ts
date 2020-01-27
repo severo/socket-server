@@ -8,7 +8,15 @@ import { Socket } from './socket.io/socket'
 
 const port: number = +process.env.PORT || 3000
 const app: express.Application = express()
-const server = http.createServer(<any>app)
+app.use(function(req, res, next) {
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  )
+  next()
+})
+const server = http.createServer(app)
 const io = socketIo(server)
 const socketServer = new Socket(io)
 
