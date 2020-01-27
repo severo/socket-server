@@ -13,7 +13,11 @@ import {
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
-import { ResetStateEvent, UsersListEvent } from '../domain/events/toclient'
+import {
+  ResetStateEvent,
+  SendStateEvent,
+  UsersListEvent,
+} from '../domain/events/toclient'
 import { ExportedUser } from '../domain'
 
 const PORT: number = 5000
@@ -21,22 +25,71 @@ const socketUrl: string = `http://localhost:${PORT}`
 const options: SocketIOClient.ConnectOpts = {
   transports: ['websocket'],
   forceNew: true,
+  autoConnect: false,
 }
+
+const isConnected = (client: SocketIOClient.Socket) =>
+  new Promise(resolve => client.on('connect', resolve))
+
+const getResetStateEvent = (client: SocketIOClient.Socket): Promise<string> =>
+  new Promise(resolve => client.on(ResetStateEvent.eventName, resolve))
+
+const getUpdateStateEvent = (
+  client: SocketIOClient.Socket
+): Promise<UpdateStateEventArgs> =>
+  new Promise(resolve => client.on(UpdateStateEvent.eventName, resolve))
+
+const getUsersList = (client: SocketIOClient.Socket): Promise<ExportedUser[]> =>
+  new Promise(resolve => client.on(UsersListEvent.eventName, resolve))
+
+const ackToUpdateState = (
+  client: SocketIOClient.Socket,
+  args: any
+): Promise<UpdateStateAckArgs> =>
+  new Promise(resolve =>
+    client.emit(
+      UpdateStateEvent.eventName,
+      new UpdateStateEvent(args).data,
+      resolve
+    )
+  )
+
+const ackToUpdateUserName = (
+  client: SocketIOClient.Socket,
+  args: any
+): Promise<UpdateUserNameAckArgs> =>
+  new Promise(resolve =>
+    client.emit(
+      UpdateUserNameEvent.eventName,
+      new UpdateUserNameEvent(args).data,
+      resolve
+    )
+  )
+
+const ackToUpdateUserColor = (
+  client: SocketIOClient.Socket,
+  args: any
+): Promise<UpdateUserColorAckArgs> =>
+  new Promise(resolve =>
+    client.emit(
+      UpdateUserColorEvent.eventName,
+      new UpdateUserColorEvent(args).data,
+      resolve
+    )
+  )
+
+const waitTms = (t: number) =>
+  new Promise(resolve => setTimeout(() => resolve('Timeout'), t))
 
 describe('Server', () => {
   describe('Socket', () => {
     describe('/occupapp-beta namespace', () => {
       let server: SocketIO.Server
       let socket: Socket
-      let client: SocketIOClient.Socket
-      let passiveClient: SocketIOClient.Socket
+      let client1: SocketIOClient.Socket
+      let client2: SocketIOClient.Socket
+      let client3: SocketIOClient.Socket
       let mockLogger: MockLogger
-
-      // order of the clients in the Socket class' 'users' property
-      // requires the clients to be connected in that order
-      const ACTIVE_CLIENT_IDX = 0
-      const PASSIVE_CLIENT_IDX = 1
-      const NEW_CLIENT_IDX = 2
 
       beforeEach(() => {
         server = io()
@@ -45,96 +98,101 @@ describe('Server', () => {
         socket.connect()
         server.listen(PORT)
 
-        client = ioClient.connect(socketUrl + '/occupapp-beta', options)
-        passiveClient = ioClient.connect(socketUrl + '/occupapp-beta', options)
+        client1 = ioClient(socketUrl + '/occupapp-beta', options)
+        client2 = ioClient(socketUrl + '/occupapp-beta', options)
+        client3 = ioClient(socketUrl + '/occupapp-beta', options)
       })
 
       afterEach(() => {
-        passiveClient.close()
-        client.close()
+        client3.close()
+        client2.close()
+        client1.close()
         server.close()
       })
 
       describe('connect', () => {
-        beforeEach(async () => {
-          await new Promise(resolve => client.on('connect', resolve))
-        })
-
         it('should connect socket', async () => {
-          expect(client.connected).to.be.true
+          client1.connect()
+          await isConnected(client1)
+          expect(client1.connected).to.be.true
         })
         it('should create a new user', async () => {
+          client1.connect()
+          await isConnected(client1)
           mockLogger
             .getInfoLogs()
             .should.include.something.that.equals(
-              `Connection from socket ${client.id}`
+              `Connection from socket ${client1.id}`
             )
           mockLogger
             .getInfoLogs()
             .should.include.something.that.equals(
-              `createUser - New user created (client socket ${client.id})`
+              `createUser - New user created (client socket ${client1.id})`
             )
         })
-        it('should send the ordered list of users, and their id should correspond to client sockets ids', async () => {
+        it('should send the ordered list of users to the first user when the second one connects, and the ids should correspond to client sockets ids', async () => {
           // arrange
-          await new Promise(resolve => passiveClient.on('connect', resolve))
-          const getUsersList = (): Promise<ExportedUser[]> =>
-            new Promise(resolve =>
-              passiveClient.on(UsersListEvent.eventName, resolve)
-            )
+          client1.connect()
+          await isConnected(client1)
 
           // act
-          const [list, newClient] = await Promise.all([
-            getUsersList(),
-            ioClient.connect(socketUrl + '/occupapp-beta', options),
+          const [list] = await Promise.all([
+            getUsersList(client1),
+            client2.connect(),
           ])
 
           // assert
-          expect(list).to.have.length(3)
+          expect(list).to.have.length(2)
           list.should.all.have.property('name')
           list.should.all.have.property('color')
-          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('id', client.id)
-          expect(list[PASSIVE_CLIENT_IDX]).to.have.property(
-            'id',
-            passiveClient.id
-          )
-          expect(list[NEW_CLIENT_IDX]).to.have.property('id', newClient.id)
-
-          // after
-          newClient.disconnect()
+          expect(list[0]).to.have.property('id', client1.id)
+          expect(list[1]).to.have.property('id', client2.id)
         })
 
-        it('should send an empty Automerge state to a new user meanwhile the state has not been changed', async () => {
+        it('should send the send-state event to the first user, and update the state with the ack', async () => {
           // arrange
-          const getResetStateEvent = (): Promise<string> =>
-            new Promise(resolve =>
-              passiveClient.on(ResetStateEvent.eventName, resolve)
-            )
+          const clientState: any = {
+            p1: 'first property',
+            p2: 2,
+          }
+          const clientAckArgs: SendStateAckArgs = {
+            sent: true,
+            state: Automerge.save(Automerge.from(clientState)),
+          }
+          client1.on(SendStateEvent.eventName, (ack: SendStateAck) => {
+            ack(clientAckArgs)
+          })
+          client1.connect()
+          await isConnected(client1)
 
           // act
-          const state = await getResetStateEvent()
+          await waitTms(50)
 
           // assert
-          expect(Automerge.load(state)).to.deep.equal({})
+          mockLogger
+            .getInfoLogs()
+            .should.include.something.that.equals(`State reset from client`)
+        })
+
+        it('should send the current Automerge state to the second user', async () => {
+          // arrange
+          client1.connect()
+          client2.connect()
+          await isConnected(client1)
+
+          // act
+          const result = await Promise.all([
+            getResetStateEvent(client2),
+            isConnected(client2),
+          ])
+          const value = result[0].toString()
+
+          // assert
+          expect(Automerge.load(value)).to.deep.equal({})
         })
       })
 
       describe('disconnect', () => {
-        let newClient: SocketIOClient.Socket
-        let newClientId: SocketIOClient.Socket['id']
-        let getUsersList: Promise<ExportedUser[]>
-
-        beforeEach(async () => {
-          newClient = ioClient.connect(socketUrl + '/occupapp-beta', options)
-          // Note: the newClient.id must be polled after the 'connect' event has
-          // been received
-          await new Promise(resolve => newClient.on('connect', resolve))
-          newClientId = newClient.id
-          getUsersList = new Promise(resolve =>
-            client.on(UsersListEvent.eventName, resolve)
-          )
-        })
-
         // TODO: test that the user is removed if connection is lost, or comes
         // from the server side?
         // For example, that the "ghosts" users are removed correctly
@@ -147,16 +205,26 @@ describe('Server', () => {
         // Is it possible to simulate this in test? See socket.io integration
         // tests for reference
         it('should disconnect socket', async () => {
+          // arrange
+          client1.connect()
+          await isConnected(client1)
+
           // act
-          newClient.disconnect()
+          client1.disconnect()
 
           //assert
-          expect(newClient.connected).to.be.false
+          expect(client1.connected).to.be.false
         })
         it('should send the ordered list of users', async () => {
+          // arrange
+          client1.connect()
+          client2.connect()
+          await isConnected(client1)
+          await isConnected(client2)
+
           // act
-          newClient.disconnect()
-          const list = await getUsersList
+          client2.disconnect()
+          const list = await getUsersList(client1)
 
           // assert
           expect(list).to.exist
@@ -164,68 +232,73 @@ describe('Server', () => {
           list.should.all.have.property('color')
         })
         it('should not include the disconnected socket id in the list of users', async () => {
+          // arrange
+          client1.connect()
+          client2.connect()
+          await isConnected(client1)
+          await isConnected(client2)
+          const client2Id = client2.id
+
           // act
-          newClient.disconnect()
-          const list = await getUsersList
+          client2.disconnect()
+          const list = await getUsersList(client1)
 
           // assert
-          list.should.not.include.something.that.has.property('id', newClientId)
+          list.should.not.include.something.that.has.property('id', client2Id)
         })
         it('should include the other connected users', async () => {
+          // arrange
+          client1.connect()
+          client2.connect()
+          client3.connect()
+          await isConnected(client1)
+          await isConnected(client2)
+          await isConnected(client3)
+
           // act
-          newClient.disconnect()
-          const list = await getUsersList
+          client3.disconnect()
+          const list = await getUsersList(client1)
 
           // assert
           expect(list).to.have.length(2)
-          expect(list[ACTIVE_CLIENT_IDX]).to.have.property('id', client.id)
-          expect(list[PASSIVE_CLIENT_IDX]).to.have.property(
-            'id',
-            passiveClient.id
-          )
+          expect(list[0]).to.have.property('id', client1.id)
+          expect(list[1]).to.have.property('id', client2.id)
         })
         it('should log that the socket has been disconnected and the user has been removed', async () => {
+          // arrange
+          client1.connect()
+          client2.connect()
+          await isConnected(client1)
+          await isConnected(client2)
+          const client2Id = client2.id
+
           // act
-          newClient.disconnect()
-          await getUsersList
+          client2.disconnect()
+          await getUsersList(client1)
 
           // assert
           mockLogger
             .getInfoLogs()
             .should.include.something.that.equals(
-              `Disconnection from socket ${newClientId} - reason: client namespace disconnect`
+              `Disconnection from socket ${client2Id} - reason: client namespace disconnect`
             )
           mockLogger
             .getInfoLogs()
             .should.include.something.that.equals(
-              `removeUser - User removed (client socket ${newClientId})`
+              `removeUser - User removed (client socket ${client2Id})`
             )
         })
       })
 
       describe('update-state', () => {
-        let updateState: (
-          args: UpdateStateEventArgs
-        ) => Promise<UpdateStateAckArgs>
-
-        beforeEach(async () => {
-          await new Promise(resolve => client.on('connect', resolve))
-          updateState = args =>
-            new Promise(resolve =>
-              client.emit(
-                UpdateStateEvent.eventName,
-                new UpdateStateEvent(args).data,
-                resolve
-              )
-            )
-        })
-
         it('should log info message for empty data, and updated should be false', async () => {
           // arrange
           const args: undefined = undefined
+          client1.connect()
+          await isConnected(client1)
 
           // act
-          const value = await updateState(args)
+          const value = await ackToUpdateState(client1, args)
 
           // assert
           expect(value).to.not.be.undefined
@@ -246,9 +319,11 @@ describe('Server', () => {
         it('should log success info message for empty changes array, and updated should be true, and error should not exist', async () => {
           // arrange
           const args: UpdateStateEventArgs = []
+          client1.connect()
+          await isConnected(client1)
 
           // act
-          const value = await updateState(args)
+          const value = await ackToUpdateState(client1, args)
 
           // assert
           expect(value).to.not.be.undefined
@@ -319,8 +394,12 @@ describe('Server', () => {
         ]
 
         it('should log info message for non-empty valid changes array, updated should be true, and error should not exist', async () => {
+          // arrange
+          client1.connect()
+          await isConnected(client1)
+
           // act
-          const value = await updateState(changes)
+          const value = await ackToUpdateState(client1, changes)
 
           // assert
           expect(value).to.not.be.undefined
@@ -333,15 +412,15 @@ describe('Server', () => {
 
         it('should send the same event to the other clients', async () => {
           // arrange
-          await new Promise(resolve => passiveClient.on('connect', resolve))
-          const getStateChanges: Promise<UpdateStateEventArgs> = new Promise(
-            resolve => passiveClient.on(UpdateStateEvent.eventName, resolve)
-          )
+          client1.connect()
+          client2.connect()
+          await isConnected(client1)
+          await isConnected(client2)
 
           // act
           const [receivedChanges] = await Promise.all([
-            getStateChanges,
-            updateState(changes),
+            getUpdateStateEvent(client2),
+            ackToUpdateState(client1, changes),
           ])
 
           // assert
@@ -351,72 +430,44 @@ describe('Server', () => {
 
         it('should not send the same event to the sender', async () => {
           // arrange
-          const getStateChanges: Promise<UpdateStateEventArgs> = new Promise(
-            resolve => client.on(UpdateStateEvent.eventName, resolve)
-          )
-          const waitFor100ms = new Promise(resolve =>
-            setTimeout(() => resolve('Nothing received'), 100)
-          )
+          client1.connect()
+          await isConnected(client1)
 
           // act
           const [receivedChanges] = await Promise.all([
-            Promise.race([getStateChanges, waitFor100ms]),
-
-            updateState(changes),
+            Promise.race([getUpdateStateEvent(client1), waitTms(50)]),
+            ackToUpdateState(client1, changes),
           ])
 
           // assert
-          expect(receivedChanges).to.equal('Nothing received')
+          expect(receivedChanges).to.equal('Timeout')
         })
 
         it('should send the persisted state to a new client, after the state had been updated', async () => {
           // arrange
-          let newClient: SocketIOClient.Socket
-          const getResetStateEvent = (): Promise<string> => {
-            return new Promise(resolve => {
-              newClient = ioClient.connect(
-                socketUrl + '/occupapp-beta',
-                options
-              )
-              newClient.on(ResetStateEvent.eventName, resolve)
-            })
-          }
+          // arrange
+          client1.connect()
+          await isConnected(client1)
+          await ackToUpdateState(client1, changes)
 
           // act
-          await updateState(changes)
-          const state = await getResetStateEvent()
+          client2.connect()
+          const state = await getResetStateEvent(client2)
 
           // assert
           expect(Automerge.load(state)).to.deep.equal(newState)
-
-          // after
-          newClient.disconnect()
         })
       })
 
       describe('update-user-name', () => {
-        let updateNameUser: (
-          args: UpdateUserNameEventArgs
-        ) => Promise<UpdateUserNameAckArgs>
-
-        beforeEach(async () => {
-          await new Promise(resolve => client.on('connect', resolve))
-          updateNameUser = args =>
-            new Promise(resolve =>
-              client.emit(
-                UpdateUserNameEvent.eventName,
-                new UpdateUserNameEvent(args).data,
-                resolve
-              )
-            )
-        })
-
         it('should log info message for empty data, and updated should be false', async () => {
           // arrange
+          client1.connect()
+          await isConnected(client1)
           const args: undefined = undefined
 
           // act
-          const value = await updateNameUser(args)
+          const value = await ackToUpdateUserName(client1, args)
 
           // assert
           expect(value).to.not.be.undefined
@@ -436,10 +487,12 @@ describe('Server', () => {
 
         it('should log info message for empty name and updated should be false', async () => {
           // arrange
+          client1.connect()
+          await isConnected(client1)
           const args = { name: '' }
 
           // act
-          const value = await updateNameUser(args)
+          const value = await ackToUpdateUserName(client1, args)
 
           // assert
           expect(value).to.not.be.undefined
@@ -459,19 +512,17 @@ describe('Server', () => {
 
         it('should log info message for valid name, updated should be true, error should not exist, and a users-list event should be sent', async () => {
           // arrange
-          await new Promise(resolve => passiveClient.on('connect', resolve))
-          const getUsersList = (): Promise<ExportedUser[]> =>
-            new Promise(resolve =>
-              passiveClient.on(UsersListEvent.eventName, resolve)
-            )
-
+          client1.connect()
+          client2.connect()
+          await isConnected(client1)
+          await isConnected(client2)
           const args = { name: 'George' }
 
           // act
-          const [value, list]: [
-            UpdateUserColorAckArgs,
-            ExportedUser[]
-          ] = await Promise.all([updateNameUser(args), getUsersList()])
+          const [value, list] = await Promise.all([
+            await ackToUpdateUserName(client1, args),
+            getUsersList(client2),
+          ])
 
           // assert
           expect(value).to.not.be.undefined
@@ -481,34 +532,20 @@ describe('Server', () => {
             .getInfoLogs()
             .should.include.something.that.equals(`User name updated`)
           expect(list).to.have.length(2)
-          const clientUser = list.find(user => user.id === client.id)
+          const clientUser = list.find(user => user.id === client1.id)
           expect(clientUser).to.have.property('name', 'George')
         })
       })
 
       describe('update-user-color', () => {
-        let updateColorUser: (
-          args: UpdateUserColorEventArgs
-        ) => Promise<UpdateUserColorAckArgs>
-
-        beforeEach(async () => {
-          await new Promise(resolve => client.on('connect', resolve))
-          updateColorUser = args =>
-            new Promise(resolve =>
-              client.emit(
-                UpdateUserColorEvent.eventName,
-                new UpdateUserColorEvent(args).data,
-                resolve
-              )
-            )
-        })
-
         it('should log info message for empty data and updated should be false', async () => {
           // arrange
+          client1.connect()
+          await isConnected(client1)
           const args: undefined = undefined
 
           // act
-          const value = await updateColorUser(args)
+          const value = await ackToUpdateUserColor(client1, args)
 
           // assert
           expect(value).to.not.be.undefined
@@ -528,10 +565,12 @@ describe('Server', () => {
 
         it('should log info message for empty color and updated should be false', async () => {
           // arrange
+          client1.connect()
+          await isConnected(client1)
           const args = { color: '' }
 
           // act
-          const value = await updateColorUser(args)
+          const value = await ackToUpdateUserColor(client1, args)
 
           // assert
           expect(value).to.not.be.undefined
@@ -551,10 +590,12 @@ describe('Server', () => {
 
         it('should log info message for invalid color and updated should be false', async () => {
           // arrange
+          client1.connect()
+          await isConnected(client1)
           const args = { color: '1235g' }
 
           // act
-          const value = await updateColorUser(args)
+          const value = await ackToUpdateUserColor(client1, args)
 
           // assert
           expect(value).to.not.be.undefined
@@ -574,19 +615,17 @@ describe('Server', () => {
 
         it('should log info message for valid color, updated should be true, error should not exist, and a users-list event should be sent', async () => {
           // arrange
-          await new Promise(resolve => passiveClient.on('connect', resolve))
-          const getUsersList = (): Promise<ExportedUser[]> =>
-            new Promise(resolve =>
-              passiveClient.on(UsersListEvent.eventName, resolve)
-            )
-
+          client1.connect()
+          client2.connect()
+          await isConnected(client1)
+          await isConnected(client2)
           const args = { color: '#123BCA' }
 
           // act
-          const [value, list]: [
-            UpdateUserColorAckArgs,
-            ExportedUser[]
-          ] = await Promise.all([updateColorUser(args), getUsersList()])
+          const [value, list] = await Promise.all([
+            await ackToUpdateUserColor(client1, args),
+            getUsersList(client2),
+          ])
 
           // assert
           expect(value).to.not.be.undefined
@@ -596,119 +635,10 @@ describe('Server', () => {
             .getInfoLogs()
             .should.include.something.that.equals(`User color updated`)
           expect(list).to.have.length(2)
-          const clientUser = list.find(user => user.id === client.id)
+          const clientUser = list.find(user => user.id === client1.id)
           expect(clientUser).to.have.property('color', '#123BCA')
         })
       })
-
-      //
-      //
-      //     it("should emit 'internal-server-error' when name is not defined", (done: Function) => {
-      //         client.on("connect", () => {
-      //             // assert
-      //             let rooms = server.sockets.adapter.rooms;
-      //             let roomJoinEventArgs: { roomId: string, name: string };
-      //             let roomJoinEvent: RoomJoinEvent;
-      //             let roomCreateEventArgs: { name: string } = { name: "George" };
-      //             let roomCreateEvent = new RoomCreateEvent(roomCreateEventArgs);
-      //
-      //             client.on(InternalServerErrorEvent.eventName, (error: Exception) => {
-      //                 assert.isDefined(error.id);
-      //                 assert.equal("Parameter <Object>.name is required", error.message);
-      //                 assert.equal("Error", error.name);
-      //                 done();
-      //             });
-      //
-      //             // act
-      //             client.emit(RoomCreateEvent.eventName, roomCreateEvent.data, ($create: CreateRoomCallbackArgs) => {
-      //                 roomJoinEventArgs = { roomId: $create.roomId, name: undefined };
-      //                 roomJoinEvent = new RoomJoinEvent(roomJoinEventArgs);
-      //
-      //                 client.emit(RoomJoinEvent.eventName, roomJoinEvent.data, ($value: RoomJoinCallbackArgs) => {
-      //                     assert.isFalse($value.access);
-      //                 });
-      //             });
-      //         });
-      //     });
-      //
-      //     it("should add user to valid room, allow access and emits 'users-all' event to update global list of users", (done: Function) => {
-      //         client.on("connect", () => {
-      //             // assert
-      //             let rooms = server.sockets.adapter.rooms;
-      //             let roomJoinEventArgs: { roomId: string, name: string };
-      //             let roomJoinEvent: RoomJoinEvent;
-      //             let john: string = "John";
-      //             let george: string = "George";
-      //             let roomCreateEventArgs: { name: string } = { name: george };
-      //             let roomCreateEvent = new RoomCreateEvent(roomCreateEventArgs);
-      //             let status: "room-create" | "room-join";
-      //
-      //             // asserts room-show-all for moderator
-      //             client.on(RoomShowAllEvent.eventName, (users: UserRole[]) => {
-      //                 if (status === "room-create") {
-      //                     // happens when current socket creates room
-      //                     assert.equal(1, users.length);
-      //                     assert.equal(users[0].name, george);
-      //                     assert.equal(users[0].role.name, "moderator");
-      //                 }
-      //                 else if (status === "room-join") {
-      //                     // happens when someone else joins
-      //                     assert.equal(2, users.length);
-      //                     let userGeorge: UserRole = users.find(u => u.name === george);
-      //                     assert.equal(userGeorge.name, george);
-      //                     assert.equal(userGeorge.role.name, "moderator");
-      //                     let userJohn: UserRole = users.find(u => u.name === john);
-      //                     assert.equal(userJohn.name, john);
-      //                     assert.equal(userJohn.role.name, "guest");
-      //                 }
-      //             });
-      //
-      //             client.on(UsersAllEvent.eventName, (users: number) => {
-      //                 if (status === "room-create") {
-      //                     // happens when current socket creates room
-      //                     assert.equal(1, users);
-      //                 }
-      //                 else if (status === "room-join") {
-      //                     // happens when someone else joins
-      //                     assert.equal(2, users);
-      //                 }
-      //             });
-      //
-      //             // act
-      //             client.emit(RoomCreateEvent.eventName, roomCreateEvent.data, ($create: CreateRoomCallbackArgs) => {
-      //                 status = "room-create";
-      //                 roomJoinEventArgs = { roomId: $create.roomId, name: john };
-      //                 roomJoinEvent = new RoomJoinEvent(roomJoinEventArgs);
-      //
-      //                 // someone else is connected and joins room
-      //                 let newClient = ioClient.connect(socketUrl, options);
-      //                 newClient.on("connect", () => {
-      //                     status = "room-join";
-      //                     newClient.on(RoomShowAllEvent.eventName, (users: UserRole[]) => {
-      //                         // when he joins, room will have two users, including him
-      //                         assert.equal(2, users.length);
-      //                         let userGeorge: UserRole = users.find(u => u.name === george);
-      //                         assert.equal(userGeorge.name, george);
-      //                         assert.equal(userGeorge.role.name, "moderator");
-      //                         let userJohn: UserRole = users.find(u => u.name === john);
-      //                         assert.equal(userJohn.name, john);
-      //                         assert.equal(userJohn.role.name, "guest");
-      //                     });
-      //
-      //                     newClient.on(UsersAllEvent.eventName, (users: number) => {
-      //                         assert.equal(2, users);
-      //                         newClient.disconnect();
-      //                         done();
-      //                     });
-      //
-      //                     newClient.emit(RoomJoinEvent.eventName, roomJoinEvent.data, ($value: RoomJoinCallbackArgs) => {
-      //                         assert.isTrue($value.access);
-      //                     });
-      //                 });
-      //             });
-      //         });
-      //     });
-      // });
     })
   })
 })

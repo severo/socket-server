@@ -8,7 +8,11 @@ import {
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
-import { ResetStateEvent, UsersListEvent } from '../domain/events/toclient'
+import {
+  ResetStateEvent,
+  SendStateEvent,
+  UsersListEvent,
+} from '../domain/events/toclient'
 import { ExportedUser, User } from '../domain'
 
 class Socket {
@@ -27,8 +31,12 @@ class Socket {
         // connection. There is no persistence for a same user between
         // connections
         const socketUser: User = this.createUser(socket.id)
-        this.emitUsersListToAll()
-        this.emitResetStateToUser(socket)
+        if (this.users.size === 1) {
+          this.emitSendStateToUser(socket)
+        } else {
+          this.emitUsersListToAll()
+          this.emitResetStateToUser(socket)
+        }
 
         socket.on(DisconnectEvent.eventName, (reason: string) => {
           this.log.info(
@@ -158,14 +166,6 @@ class Socket {
     return removed
   }
 
-  // private emitInternalServerError(socket: SocketIO.Socket, error: Error) {
-  //   let internalServerErrorEvent = new InternalServerErrorEvent(error)
-  //   socket.emit(
-  //     InternalServerErrorEvent.eventName,
-  //     this.toException(internalServerErrorEvent.error)
-  //   )
-  // }
-
   private emitUsersListToAll() {
     // TODO: add log?
     const usersListEvent = new UsersListEvent(this.exportedUsers)
@@ -182,6 +182,35 @@ class Socket {
     // TODO: add log?
     const resetStateEvent = new ResetStateEvent(this.savedAutomergeState)
     socket.emit(ResetStateEvent.eventName, resetStateEvent.state)
+  }
+
+  private emitSendStateToUser(socket: SocketIO.Socket) {
+    // TODO: add log?
+    socket.emit(SendStateEvent.eventName, (args: SendStateAckArgs) => {
+      if (args.sent === false) {
+        this.log.info(
+          'State has not been returned by the client',
+          args.error ? args.error.message : 'no error sent by the client'
+        )
+      }
+
+      try {
+        this.state = Automerge.load(args.state)
+      } catch (error) {
+        this.log.info('State could not be loaded', error.message)
+      }
+
+      // Send to the other users in the namespace (if there are other users)
+      this.emitResetStateToOthers(socket)
+
+      this.log.info('State reset from client')
+    })
+  }
+
+  private emitResetStateToOthers(socket: SocketIO.Socket) {
+    // TODO: add log?
+    const resetStateEvent = new ResetStateEvent(this.savedAutomergeState)
+    socket.broadcast.emit(ResetStateEvent.eventName, resetStateEvent.state)
   }
 
   private emitUpdateStateToOthers(
