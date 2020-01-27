@@ -1,17 +1,17 @@
 import { expect } from 'chai'
-import { StateEvent } from './state.event'
+import { ResetStateEvent } from './reset.state.event'
 
 describe('Events', () => {
-  describe('StateEvent', () => {
-    it("should have 'state' event as name", () => {
-      expect(StateEvent.eventName).to.equal('state')
+  describe('ResetStateEvent', () => {
+    it("should have 'reset-state' event as name", () => {
+      expect(ResetStateEvent.eventName).to.equal('reset-state')
     })
     it('should initialize a string', () => {
       // arrange
       const state: string = `["~#iL",[]]`
 
       // act
-      const event = new StateEvent(state)
+      const event = new ResetStateEvent(state)
 
       // assert
       expect(event.state).to.deep.equal(state)

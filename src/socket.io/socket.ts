@@ -8,7 +8,7 @@ import {
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
-import { StateEvent, UsersListEvent } from '../domain/events/toclient'
+import { ResetStateEvent, UsersListEvent } from '../domain/events/toclient'
 import { ExportedUser, User } from '../domain'
 
 class Socket {
@@ -28,7 +28,7 @@ class Socket {
         // connections
         const socketUser: User = this.createUser(socket.id)
         this.emitUsersListToAll()
-        this.emitStateToUser(socket)
+        this.emitResetStateToUser(socket)
 
         socket.on(DisconnectEvent.eventName, (reason: string) => {
           this.log.info(
@@ -178,10 +178,10 @@ class Socket {
     return [...this.users.values()].map(user => user.export())
   }
 
-  private emitStateToUser(socket: SocketIO.Socket) {
+  private emitResetStateToUser(socket: SocketIO.Socket) {
     // TODO: add log?
-    const stateEvent = new StateEvent(this.savedAutomergeState)
-    socket.emit(StateEvent.eventName, stateEvent.state)
+    const resetStateEvent = new ResetStateEvent(this.savedAutomergeState)
+    socket.emit(ResetStateEvent.eventName, resetStateEvent.state)
   }
 
   private emitUpdateStateToOthers(

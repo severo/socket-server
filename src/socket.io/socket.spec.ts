@@ -13,7 +13,7 @@ import {
   UpdateUserNameEvent,
   UpdateUserColorEvent,
 } from '../domain/events/toserver'
-import { StateEvent, UsersListEvent } from '../domain/events/toclient'
+import { ResetStateEvent, UsersListEvent } from '../domain/events/toclient'
 import { ExportedUser } from '../domain'
 
 const PORT: number = 5000
@@ -106,13 +106,13 @@ describe('Server', () => {
 
         it('should send an empty Automerge state to a new user meanwhile the state has not been changed', async () => {
           // arrange
-          const getStateEvent = (): Promise<string> =>
+          const getResetStateEvent = (): Promise<string> =>
             new Promise(resolve =>
-              passiveClient.on(StateEvent.eventName, resolve)
+              passiveClient.on(ResetStateEvent.eventName, resolve)
             )
 
           // act
-          const state = await getStateEvent()
+          const state = await getResetStateEvent()
 
           // assert
           expect(Automerge.load(state)).to.deep.equal({})
@@ -372,19 +372,19 @@ describe('Server', () => {
         it('should send the persisted state to a new client, after the state had been updated', async () => {
           // arrange
           let newClient: SocketIOClient.Socket
-          const getStateEvent = (): Promise<string> => {
+          const getResetStateEvent = (): Promise<string> => {
             return new Promise(resolve => {
               newClient = ioClient.connect(
                 socketUrl + '/occupapp-beta',
                 options
               )
-              newClient.on(StateEvent.eventName, resolve)
+              newClient.on(ResetStateEvent.eventName, resolve)
             })
           }
 
           // act
           await updateState(changes)
-          const state = await getStateEvent()
+          const state = await getResetStateEvent()
 
           // assert
           expect(Automerge.load(state)).to.deep.equal(newState)
